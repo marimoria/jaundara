@@ -1,4 +1,0 @@
-[core]
-    remote = jaundice_dataset
-['remote "jaundice_dataset"']
-    url = https://huggingface.co/datasets/mariaamandadevina/dhs-dataset

@@ -18,9 +18,9 @@ HF_REPO_ID   = "mariaamandadevina/dhs-dataset"
 HF_REPO_TYPE = "dataset"
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "__data__")))
+DATA_DHS_DIR = Path(os.getenv("DATA_DHS_DIR", str(BASE_DIR / "__data__")))
 
-OUT_CSV = DATA_DIR / "dhs_combined.csv"
+OUT_CSV = DATA_DHS_DIR / "dhs_combined.csv"
 
 COUNTRIES = {
     "Bangladesh": "BD",
@@ -91,12 +91,12 @@ def collect_all_files(directory: Path) -> list[Path]:
 
 def pick_files(all_files: list[Path]) -> list[Path]:
     if not all_files:
-        print(f"  ✗ No files found in {DATA_DIR}")
+        print(f"  ✗ No files found in {DATA_DHS_DIR}")
         return []
 
-    print(f"\n  Files found in {DATA_DIR}:")
+    print(f"\n  Files found in {DATA_DHS_DIR}:")
     for i, f in enumerate(all_files, 1):
-        rel = f.relative_to(DATA_DIR)
+        rel = f.relative_to(DATA_DHS_DIR)
         size_kb = f.stat().st_size / 1024
         print(f"    [{i}] {rel}  ({size_kb:.1f} KB)")
 
@@ -146,17 +146,17 @@ def read_dta(filepath: str, variables: list[str]):
 def upload_local_files():
     separator("OPTION 1 — Upload local files to HuggingFace")
 
-    if not DATA_DIR.exists():
-        print(f"  ✗ DATA_DIR not found: {DATA_DIR}")
+    if not DATA_DHS_DIR.exists():
+        print(f"  ✗ DATA_DHS_DIR not found: {DATA_DHS_DIR}")
         return
 
-    all_files = collect_all_files(DATA_DIR)
+    all_files = collect_all_files(DATA_DHS_DIR)
     selected  = pick_files(all_files)
     if not selected:
         return
 
     api   = HfApi()
-    pairs = [(f, str(f.relative_to(DATA_DIR))) for f in selected]
+    pairs = [(f, str(f.relative_to(DATA_DHS_DIR))) for f in selected]
     upload_files(api, pairs)
 
 
@@ -165,16 +165,16 @@ def upload_local_files():
 # ─────────────────────────────────────────
 def download_all_files():
     separator("OPTION 2 — Download all files from HuggingFace")
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_DHS_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"  ↓ Downloading full repo snapshot → {DATA_DIR} ...")
+    print(f"  ↓ Downloading full repo snapshot → {DATA_DHS_DIR} ...")
     snapshot_download(
         repo_id=HF_REPO_ID,
         repo_type=HF_REPO_TYPE,
-        local_dir=str(DATA_DIR),
+        local_dir=str(DATA_DHS_DIR),
         token=HF_TOKEN,
     )
-    print(f"  ✓ All files downloaded to: {DATA_DIR}")
+    print(f"  ✓ All files downloaded to: {DATA_DHS_DIR}")
 
 
 # ─────────────────────────────────────────
@@ -182,7 +182,7 @@ def download_all_files():
 # ─────────────────────────────────────────
 def download_specific_files():
     separator("OPTION 3 — Download specific file(s) from HuggingFace")
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_DHS_DIR.mkdir(parents=True, exist_ok=True)
 
     print("  Enter filename(s) as they appear in the repo (e.g. dhs_combined.csv).")
     print("  Separate multiple filenames with spaces:")
@@ -201,9 +201,9 @@ def download_specific_files():
                 filename=filename,
                 repo_type=HF_REPO_TYPE,
                 token=HF_TOKEN,
-                local_dir=str(DATA_DIR),
+                local_dir=str(DATA_DHS_DIR),
             )
-            print(f"  ✓ Saved: {DATA_DIR / filename}")
+            print(f"  ✓ Saved: {DATA_DHS_DIR / filename}")
         except Exception as e:
             print(f"  ✗ Failed: {filename} — {e}")
 
@@ -220,7 +220,7 @@ def combine_dta_to_csv():
         print(f"\n  Processing: {country_name} ({country_code})")
         separator()
 
-        country_dir = DATA_DIR / country_name
+        country_dir = DATA_DHS_DIR / country_name
         country_dfs = []
 
         for file_type, variables in FILE_VARIABLES.items():
@@ -257,7 +257,7 @@ def combine_dta_to_csv():
     print("  Combining all countries...")
     final_df = pd.concat(all_dfs, axis=0, ignore_index=True)
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_DHS_DIR.mkdir(parents=True, exist_ok=True)
     final_df.to_csv(OUT_CSV, index=False)
 
     print(f"\n  ✓ Total rows : {len(final_df):,}")

@@ -43,17 +43,17 @@ _MIN_ACCEPTABLE_COVERAGE = 0.05
 
 def _crop_center_half(image: np.ndarray) -> np.ndarray:
     """
-    Return the central 50 % of the image (width and height).
-
-    This reliably isolates the skin region visible through the
-    NeoJaundice color-card aperture while discarding the card border.
-    No color correction is applied or claimed.
+    Return the central 40 % of the image (width and height).
+    Tightened from 50 % to reliably avoid the NeoJaundice color-card border.
     """
     h, w = image.shape[:2]
-    y0 = h // 4
-    y1 = y0 + h // 2
-    x0 = w // 4
-    x1 = x0 + w // 2
+    
+    # 30% to 70% covers the central 40% of the image
+    y0 = int(h * 0.3)
+    y1 = int(h * 0.7)
+    x0 = int(w * 0.3)
+    x1 = int(w * 0.7)
+    
     return image[y0:y1, x0:x1]
 
 

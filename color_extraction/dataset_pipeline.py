@@ -135,6 +135,7 @@ def extract_features_with_augmentation(
     save_every: int = 50,
     debug: bool = False,
     debug_dir: str = "debug",
+    start_from: str | None = None,
 ) -> pd.DataFrame:
     """
     For every image path:
@@ -155,6 +156,7 @@ def extract_features_with_augmentation(
     save_every     : int         Checkpoint frequency (originals processed).
     debug          : bool        Save debug figures for original images.
     debug_dir      : str         Root folder for debug output.
+    start_from     : str | None  Skip all files alphabetically before this filename.
 
     Returns
     -------
@@ -164,19 +166,28 @@ def extract_features_with_augmentation(
     if not image_paths:
         raise ValueError("No image paths provided to extract_features_with_augmentation.")
 
-    # Resume from checkpoint if available
+    # 1. Setup variables
     already_done: set[str] = set()
     rows: list[dict]       = []
 
+    # 2. Checkpoint logic
     if checkpoint_file and os.path.exists(checkpoint_file):
         existing = pd.read_csv(checkpoint_file)
         if "image_idx" in existing.columns:
             already_done = set(existing["image_idx"].tolist())
             LOG.info(f"Resuming from checkpoint — {len(already_done)} original images done")
 
+    # 3. Create the pending list
     pending = [p for p in image_paths if os.path.basename(p) not in already_done]
+    
+    # 4. Apply start_from override
+    if start_from:
+        pending = [p for p in pending if os.path.basename(p) >= start_from]
+        LOG.info(f"Manual override: Starting from {start_from} (Pending: {len(pending)})")
+        
     LOG.info(f"Images to process: {len(pending)} (skipping {len(already_done)} done)")
 
+    # 5. Extraction Loop
     n_ok = n_fail = 0
     flush_buffer: list[dict] = []
     write_mode   = "a" if already_done else "w"
@@ -398,6 +409,7 @@ def run_full_training_data_pipeline(
     save_every: int = 50,
     debug: bool = False,
     debug_dir: str = "debug",
+    start_from: str | None = None
 ) -> pd.DataFrame:
     """
     End-to-end pipeline from raw images to a training-ready CSV.
@@ -412,6 +424,7 @@ def run_full_training_data_pipeline(
     save_every           : int   Checkpoint flush frequency (originals).
     debug                : bool  Save per-image debug figures.
     debug_dir            : str   Root folder for debug figures.
+    start_from           : str | None Skip all files alphabetically before this filename.
 
     Returns
     -------
@@ -434,6 +447,7 @@ def run_full_training_data_pipeline(
         save_every      = save_every,
         debug           = debug,
         debug_dir       = debug_dir,
+        start_from      = start_from
     )
 
     # Step 3b — Pivot zones into per-patient rows

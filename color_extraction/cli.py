@@ -15,23 +15,30 @@ Two modes
 Usage examples
 --------------
   # Full training pipeline
-  python -m color_extraction training \\
-      --image_dir  data/neo/images \\
-      --clinical_csv data/neo/neo.csv \\
+  python -m color_extraction training 
+      --image_dir  data/neo/images 
+      --clinical_csv data/neo/neo.csv 
       --output     out/training_data.csv
 
+  # Training starting from a specific file (manual override)
+  python -m color_extraction training
+      --image_dir    data/neo/images
+      --clinical_csv data/neo/neo.csv
+      --output       out/training_data.csv
+      --start_from   0032-3.jpg
+
   # Single-image debug mode
-  python -m color_extraction debug \\
-      --image      data/neo/images/0003-1.jpg \\
+  python -m color_extraction debug 
+      --image      data/neo/images/0003-1.jpg 
       --debug_dir  out/debug
 
   # Training with checkpoint and debug figures
-  python -m color_extraction training \\
-      --image_dir    data/neo/images \\
-      --clinical_csv data/neo/neo.csv \\
-      --output       out/training_data.csv \\
-      --debug \\
-      --debug_dir    out/debug \\
+  python -m color_extraction training 
+      --image_dir    data/neo/images 
+      --clinical_csv data/neo/neo.csv 
+      --output       out/training_data.csv 
+      --debug 
+      --debug_dir    out/debug 
       --save_every   100
 """
 
@@ -78,6 +85,7 @@ def run_training_pipeline(args: argparse.Namespace, log: logging.Logger) -> None
         save_every           = args.save_every,
         debug                = args.debug,
         debug_dir            = args.debug_dir,
+        start_from           = getattr(args, "start_from", None),
     )
 
 
@@ -178,6 +186,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
     train_p.add_argument(
         "--log_file", metavar="PATH",
         help="Optional path to write the full log as a .txt file.",
+    )
+    # In build_argument_parser() under the training sub-command:
+    train_p.add_argument(
+        "--start_from", metavar="FILENAME",
+        help="Skip all files alphabetically before this filename (e.g., 0032-3.jpg).",
     )
 
     # ── debug sub-command ─────────────────────────────────────

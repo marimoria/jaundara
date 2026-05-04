@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 np.random.seed(42)
 
 DATA_PATH     = "__data__/neo/out/training.csv"
-MODELS_DIR    = "models"
+MODELS_DIR    = "__models__"
 PLOTS_DIR     = "plots"
 SEV_THRESHOLD = 15.0
 DETECT_LABEL  = "jaundice_label"

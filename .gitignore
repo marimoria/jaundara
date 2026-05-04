@@ -1,4 +1,5 @@
 __data__/
+__models__/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

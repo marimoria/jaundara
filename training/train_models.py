@@ -33,9 +33,6 @@ Models saved to: ./__models__/
   model_2A.pkl  — TSB regressor    (color + metadata)    [NEW]
   model_2B.pkl  — TSB regressor    (color only)          [NEW]
 
-Regression is trained on jaundiced patients only (blood_mg_dl is meaningful
-only when jaundice_label == 1).  Model 1 handles the detection gate.
-
 Usage:
   python train_models_v4.py
   python train_models_v4.py --log

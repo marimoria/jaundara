@@ -21,14 +21,15 @@ Training zones:
 
 CSV schema expected from the NeoJaundice dataset:
   patient_id, image_idx, gender, gestational_age, age(day),
-  weight, blood(mg/dL), Treatment
+  weight, blood(mg/dL), jaundice_label
 
 Model input columns written to the output CSV:
   42 color features (14 * 3 zones, prefixed zone1_ / zone2_ / zone3_)
   + gestational_age, postnatal_age_days, weight   (available to home user)
   + blood_mg_dl                                    (TSB — regression label)
-  + jaundice_label                                 (binary — classification label)
-  + treatment                                      (retained for subgroup analysis only)
+  + jaundice_label                                 (binary — classification label,
+                                                    derived from jaundice_label in the
+                                                    original dataset)
 """
 
 import os
@@ -56,14 +57,14 @@ LOG = logging.getLogger("jaundice_extractor")
 
 _TRAINING_ZONE_SUFFIXES = {"-1", "-2", "-3"}   # head, face/cheek, chest
 _VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
-_TSB_JAUNDICE_THRESHOLD  = 12.9          # mg/dL — per NeoJaundice clinical protocol
+_TSB_JAUNDICE_THRESHOLD  = 12.9          # mg/dL — used for severity split in train_models.py
 _N_AUGMENTED_VARIANTS    = 3
 
 # Rename map: raw CSV column → normalised name used throughout this codebase
 _CSV_COLUMN_RENAMES = {
     "age(day)":    "postnatal_age_days",
     "blood(mg/dL)": "blood_mg_dl",
-    "Treatment":   "treatment",
+    "jaundice_label":   "jaundice_label",   # jaundice_label IS the ground-truth classification label
 }
 
 # Clinical metadata available to a mother at home (model inputs)
@@ -311,11 +312,11 @@ def merge_features_with_clinical_metadata(
     clinical_csv_path: str,
 ) -> pd.DataFrame:
     """
-    Join the 28-feature patient rows with the clinical CSV.
+    Join the zone-feature patient rows with the clinical CSV.
 
-    Adds TSB (regression label), binary jaundice label, and the three
-    metadata fields a mother can provide at home. Treatment is retained
-    for subgroup analysis but is NOT used as a model input.
+    jaundice_label is taken directly from the jaundice_label column in the original
+    dataset — it is the clinician-assigned ground truth, not a derived threshold.
+    blood_mg_dl is retained as the TSB regression label.
 
     Parameters
     ----------
@@ -330,7 +331,7 @@ def merge_features_with_clinical_metadata(
 
     # One clinical record per patient (all three zone rows are identical)
     clinical_per_patient = (
-        clinical[["patient_id"] + _HOME_USER_METADATA_COLS + ["blood_mg_dl", "treatment"]]
+        clinical[["patient_id"] + _HOME_USER_METADATA_COLS + ["blood_mg_dl", "jaundice_label"]]
         .drop_duplicates(subset="patient_id")
     )
 
@@ -339,9 +340,6 @@ def merge_features_with_clinical_metadata(
         on="patient_id",
         how="left",
     )
-
-    # Binary jaundice label
-    merged["jaundice_label"] = (merged["blood_mg_dl"] >= _TSB_JAUNDICE_THRESHOLD).astype(int)
 
     matched = merged["blood_mg_dl"].notna().sum()
     LOG.info(
@@ -371,22 +369,21 @@ def write_training_csv(training_df: pd.DataFrame, output_path: str) -> None:
       patient_id, is_augmented,
       zone1_* (14 features), zone2_* (14 features), zone3_* (14 features),
       gestational_age, postnatal_age_days, weight,   ← home-user metadata
-      blood_mg_dl, jaundice_label,                   ← labels
-      treatment                                       ← subgroup analysis only
+      blood_mg_dl,                                   ← TSB regression label
+      jaundice_label                                 ← clinician-assigned jaundice_label label
     """
     os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
 
     # Enforce column order
-    zone_cols     = (
+    zone_cols  = (
         [f"zone1_{f}" for f in FEATURE_NAMES] +
         [f"zone2_{f}" for f in FEATURE_NAMES] +
         [f"zone3_{f}" for f in FEATURE_NAMES]
     )
-    meta_cols     = _HOME_USER_METADATA_COLS
-    label_cols    = ["blood_mg_dl", "jaundice_label"]
-    subgroup_cols = ["treatment"]
+    meta_cols  = _HOME_USER_METADATA_COLS
+    label_cols = ["blood_mg_dl", "jaundice_label"]
 
-    ordered = ["patient_id", "is_augmented"] + zone_cols + meta_cols + label_cols + subgroup_cols
+    ordered = ["patient_id", "is_augmented"] + zone_cols + meta_cols + label_cols
     # Keep any extra columns at the end (future-proof)
     extras  = [c for c in training_df.columns if c not in ordered]
     final   = training_df[[c for c in ordered + extras if c in training_df.columns]]

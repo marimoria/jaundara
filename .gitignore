@@ -1,5 +1,6 @@
 __data__/
 __models__/
+__plots__/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

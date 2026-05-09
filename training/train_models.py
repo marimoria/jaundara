@@ -523,8 +523,6 @@ all_results["1B"] = {"val": r1B_val, "test": r1B_test, "n_feat": len(feats_1B), 
 # ─────────────────────────────────────────────
 log.info("\n" + "=" * 70)
 log.info("MODEL 2A — TSB Regressor (color + metadata)")
-log.info("  Trained on JAUNDICED patients only (blood_mg_dl is the target).")
-log.info("  Model 1A/1B gates detection; Model 2A/2B estimates the number.")
 log.info("=" * 70)
 
 m2A_full = train_tsb_regressor(

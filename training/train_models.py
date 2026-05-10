@@ -15,7 +15,7 @@ Plan v4 replaces Model 2 with a LightGBM REGRESSOR:
 Inference pipeline:
   1. Model 1A/2B says "Jaundice Detected" (binary gate, fast).
   2. Model 2A/2B predicts "Estimated Bilirubin = 14.2 mg/dL" (the number).
-  3. Flutter app receives (tsb_estimate, postnatal_age_hours), evaluates the
+  3. Flutter app receives (tsb_estimate, postnatal_age_days), evaluates the
      Bhutani Nomogram thresholds in code, and surfaces the exact risk zone
      and recommended action to the mother.
 

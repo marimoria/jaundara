@@ -209,8 +209,7 @@ ax4.plot(BHUTANI_HOURS, P95, "r-",  lw=1.5)
 ax4.plot(BHUTANI_HOURS, P75, "-",  color="orange", lw=1.5)
 ax4.plot(BHUTANI_HOURS, P40, "y-", lw=1.5)
 
-# Overlay Model 2A predictions (if postnatal_age_days is available)
-# Use postnatal_age_hours as x, predicted TSB as y
+# Overlay Model 2A predictions (if postnatal_age_days is available)d
 if "postnatal_age_days" in reg_test_df.columns:
     bundle_2A = load_model("model_2A")
     feats_2A  = safe_feats(bundle_2A["features"], reg_test_df)

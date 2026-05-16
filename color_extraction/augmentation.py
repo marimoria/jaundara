@@ -35,18 +35,12 @@ import numpy as np
 import cv2
 
 
-# ──────────────────────────────────────────────────────────────
 # Constants
-# ──────────────────────────────────────────────────────────────
-
 _BRIGHTNESS_FACTOR_RANGE = (0.8, 1.2)
 _DEFAULT_VARIANTS_PER_IMAGE = 3
 
 
-# ──────────────────────────────────────────────────────────────
 # Core augmentation
-# ──────────────────────────────────────────────────────────────
-
 def apply_brightness_shift(bgr_image: np.ndarray, factor: float) -> np.ndarray:
     """
     Multiply the L channel of an HLS image by `factor`, clamping to [0, 255].
@@ -103,10 +97,7 @@ def generate_brightness_augmented_variants(
     ]
 
 
-# ──────────────────────────────────────────────────────────────
 # Disk-based helpers (used by dataset_pipeline)
-# ──────────────────────────────────────────────────────────────
-
 def save_augmented_variants_to_disk(
     source_image_path: str,
     output_dir: str,
@@ -121,15 +112,18 @@ def save_augmented_variants_to_disk(
     Returns a list of the saved file paths.
     """
     import os
+
     os.makedirs(output_dir, exist_ok=True)
 
     bgr = cv2.imread(source_image_path)
     if bgr is None:
         raise ValueError(f"Cannot read: {source_image_path}")
 
-    stem     = Path(source_image_path).stem
-    ext      = Path(source_image_path).suffix or ".jpg"
-    variants = generate_brightness_augmented_variants(bgr, n_variants, factor_range, seed)
+    stem = Path(source_image_path).stem
+    ext = Path(source_image_path).suffix or ".jpg"
+    variants = generate_brightness_augmented_variants(
+        bgr, n_variants, factor_range, seed
+    )
 
     saved_paths = []
     for i, variant in enumerate(variants):

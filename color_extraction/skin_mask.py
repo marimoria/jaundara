@@ -11,25 +11,23 @@ import numpy as np
 import cv2
 
 
-# ──────────────────────────────────────────────────────────────
 # HSV range constants
-# ──────────────────────────────────────────────────────────────
+
 
 # Range 1 — light to medium neonatal skin (Chinese, Indonesian, light Middle Eastern)
-_HSV_LIGHT_SKIN_LOWER = np.array([0,  15,  60], dtype=np.uint8)
+_HSV_LIGHT_SKIN_LOWER = np.array([0, 15, 60], dtype=np.uint8)
 _HSV_LIGHT_SKIN_UPPER = np.array([25, 255, 255], dtype=np.uint8)
 
 # Range 2 — darker neonatal skin tones (lower hue wrap, lower saturation floor)
-_HSV_DARK_SKIN_LOWER  = np.array([0,  10,  40], dtype=np.uint8)
-_HSV_DARK_SKIN_UPPER  = np.array([10, 200, 200], dtype=np.uint8)
+_HSV_DARK_SKIN_LOWER = np.array([0, 10, 40], dtype=np.uint8)
+_HSV_DARK_SKIN_UPPER = np.array([10, 200, 200], dtype=np.uint8)
 
 # Morphological kernel for closing holes and removing speck noise
 _MORPH_KERNEL = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
 
 
-# ──────────────────────────────────────────────────────────────
 # Public API
-# ──────────────────────────────────────────────────────────────
+
 
 def build_neonatal_skin_mask(bgr_image: np.ndarray) -> np.ndarray:
     """
@@ -52,11 +50,11 @@ def build_neonatal_skin_mask(bgr_image: np.ndarray) -> np.ndarray:
     hsv = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
 
     mask_light = cv2.inRange(hsv, _HSV_LIGHT_SKIN_LOWER, _HSV_LIGHT_SKIN_UPPER)
-    mask_dark  = cv2.inRange(hsv, _HSV_DARK_SKIN_LOWER,  _HSV_DARK_SKIN_UPPER)
-    combined   = cv2.bitwise_or(mask_light, mask_dark)
+    mask_dark = cv2.inRange(hsv, _HSV_DARK_SKIN_LOWER, _HSV_DARK_SKIN_UPPER)
+    combined = cv2.bitwise_or(mask_light, mask_dark)
 
     cleaned = cv2.morphologyEx(combined, cv2.MORPH_CLOSE, _MORPH_KERNEL)
-    cleaned = cv2.morphologyEx(cleaned,  cv2.MORPH_OPEN,  _MORPH_KERNEL)
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, _MORPH_KERNEL)
 
     return cleaned
 

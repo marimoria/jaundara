@@ -9,9 +9,8 @@ No I/O, no side effects, no dependencies beyond the standard library.
 import colorsys
 
 
-# ──────────────────────────────────────────────────────────────
 # RGB → HSL
-# ──────────────────────────────────────────────────────────────
+
 
 def rgb_to_hsl(r: float, g: float, b: float) -> tuple[float, float, float]:
     """
@@ -27,9 +26,8 @@ def rgb_to_hsl(r: float, g: float, b: float) -> tuple[float, float, float]:
     return round(h * 360, 4), round(s * 100, 4), round(l * 100, 4)
 
 
-# ──────────────────────────────────────────────────────────────
 # RGB → XYZ → CIELAB
-# ──────────────────────────────────────────────────────────────
+
 
 def _linearise_srgb_channel(c: float) -> float:
     """Apply sRGB gamma removal to a single channel."""
@@ -55,7 +53,7 @@ def rgb_to_xyz(r: float, g: float, b: float) -> tuple[float, float, float]:
 def _lab_f(t: float) -> float:
     """CIE f() function used in XYZ → Lab conversion."""
     d = 6 / 29
-    return t ** (1 / 3) if t > d ** 3 else t / (3 * d ** 2) + 4 / 29
+    return t ** (1 / 3) if t > d**3 else t / (3 * d**2) + 4 / 29
 
 
 def xyz_to_lab(X: float, Y: float, Z: float) -> tuple[float, float, float]:

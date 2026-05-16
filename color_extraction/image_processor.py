@@ -37,9 +37,8 @@ LOG = logging.getLogger("jaundice_extractor")
 _MIN_ACCEPTABLE_COVERAGE = 0.05
 
 
-# ──────────────────────────────────────────────────────────────
 # Internal helpers
-# ──────────────────────────────────────────────────────────────
+
 
 def _crop_center_half(image: np.ndarray) -> np.ndarray:
     """
@@ -47,13 +46,13 @@ def _crop_center_half(image: np.ndarray) -> np.ndarray:
     Tightened from 50 % to reliably avoid the NeoJaundice color-card border.
     """
     h, w = image.shape[:2]
-    
+
     # 30% to 70% covers the central 40% of the image
     y0 = int(h * 0.3)
     y1 = int(h * 0.7)
     x0 = int(w * 0.3)
     x1 = int(w * 0.7)
-    
+
     return image[y0:y1, x0:x1]
 
 
@@ -73,9 +72,8 @@ def _patient_id_from_filename(filename: str) -> str:
     return Path(filename).stem.split("-")[0]
 
 
-# ──────────────────────────────────────────────────────────────
 # Public API
-# ──────────────────────────────────────────────────────────────
+
 
 def process_single_image(
     image_path: str,
@@ -101,25 +99,25 @@ def process_single_image(
         patient_id, image_idx,
         and all 14 feature names from feature_extractor.FEATURE_NAMES.
     """
-    filename   = os.path.basename(image_path)
+    filename = os.path.basename(image_path)
     patient_id = _patient_id_from_filename(filename)
 
     LOG.info(f"  Processing: {filename}")
 
     # ── Load ─────────────────────────────────────────────────
     raw_bgr = _load_bgr_image(image_path)
-    h, w    = raw_bgr.shape[:2]
+    h, w = raw_bgr.shape[:2]
     LOG.debug(f"    Original size: {w}×{h} px")
 
     # ── Crop calibration card ─────────────────────────────────
     cropped_bgr = _crop_center_half(raw_bgr)
-    ch, cw      = cropped_bgr.shape[:2]
+    ch, cw = cropped_bgr.shape[:2]
     LOG.debug(f"    Cropped size:  {cw}×{ch} px")
 
     # ── Skin mask ─────────────────────────────────────────────
-    skin_mask  = build_neonatal_skin_mask(cropped_bgr)
-    coverage   = skin_coverage_fraction(skin_mask)
-    n_skin     = int((skin_mask > 0).sum())
+    skin_mask = build_neonatal_skin_mask(cropped_bgr)
+    coverage = skin_coverage_fraction(skin_mask)
+    n_skin = int((skin_mask > 0).sum())
     LOG.debug(f"    Skin coverage: {n_skin:,} px ({coverage * 100:.1f}%)")
 
     if coverage < _MIN_ACCEPTABLE_COVERAGE:
@@ -145,14 +143,15 @@ def process_single_image(
     # ── Optional debug figure ─────────────────────────────────
     if debug:
         from .debug_visualizer import save_debug_figure
+
         image_debug_dir = os.path.join(debug_dir, Path(image_path).stem)
         save_debug_figure(
-            image_path       = image_path,
-            cropped_bgr      = cropped_bgr,
-            skin_mask        = skin_mask,
-            skin_pixels_rgb  = skin_pixels_rgb,
-            features         = features,
-            output_dir       = image_debug_dir,
+            image_path=image_path,
+            cropped_bgr=cropped_bgr,
+            skin_mask=skin_mask,
+            skin_pixels_rgb=skin_pixels_rgb,
+            features=features,
+            output_dir=image_debug_dir,
         )
 
     return {"patient_id": patient_id, "image_idx": filename, **features}

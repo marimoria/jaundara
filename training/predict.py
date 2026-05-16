@@ -22,24 +22,24 @@ MODELS_DIR = "__models__"
 # (Pediatrics 2000; 114:297-316). Valid range: 12–144 postnatal hours.
 # Columns: (hours, P40, P75, P95) thresholds in mg/dL.
 _BHUTANI_TABLE: list[tuple[int, float, float, float]] = [
-    (12,  3.5,  5.5,  7.5),
-    (24,  5.5,  7.5, 10.0),
-    (36,  7.0,  9.5, 12.5),
-    (48,  8.5, 11.0, 14.5),
-    (60,  9.5, 12.5, 16.0),
+    (12, 3.5, 5.5, 7.5),
+    (24, 5.5, 7.5, 10.0),
+    (36, 7.0, 9.5, 12.5),
+    (48, 8.5, 11.0, 14.5),
+    (60, 9.5, 12.5, 16.0),
     (72, 10.5, 13.5, 17.0),
     (84, 11.0, 14.0, 17.5),
     (96, 11.0, 14.0, 17.5),
-    (108,10.5, 13.5, 17.0),
-    (120,10.0, 13.0, 16.5),
+    (108, 10.5, 13.5, 17.0),
+    (120, 10.0, 13.0, 16.5),
     (132, 9.5, 12.5, 16.0),
     (144, 9.0, 12.0, 15.5),
 ]
 
 _BHUTANI_HOURS = np.array([r[0] for r in _BHUTANI_TABLE], dtype=float)
-_BHUTANI_P40   = np.array([r[1] for r in _BHUTANI_TABLE], dtype=float)
-_BHUTANI_P75   = np.array([r[2] for r in _BHUTANI_TABLE], dtype=float)
-_BHUTANI_P95   = np.array([r[3] for r in _BHUTANI_TABLE], dtype=float)
+_BHUTANI_P40 = np.array([r[1] for r in _BHUTANI_TABLE], dtype=float)
+_BHUTANI_P75 = np.array([r[2] for r in _BHUTANI_TABLE], dtype=float)
+_BHUTANI_P95 = np.array([r[3] for r in _BHUTANI_TABLE], dtype=float)
 
 
 def _bhutani_thresholds(age_hours: float) -> tuple[float, float, float]:
@@ -96,10 +96,14 @@ def bhutani_risk_zone(tsb_mgdl: float, postnatal_age_hours: float) -> dict:
         )
 
     return {
-        "zone":       zone,
-        "zone_code":  code,
-        "action":     action,
-        "thresholds": {"p40": round(p40, 2), "p75": round(p75, 2), "p95": round(p95, 2)},
+        "zone": zone,
+        "zone_code": code,
+        "action": action,
+        "thresholds": {
+            "p40": round(p40, 2),
+            "p75": round(p75, 2),
+            "p95": round(p95, 2),
+        },
     }
 
 
@@ -138,56 +142,81 @@ def predict_patient(
 
     has_meta = all(v is not None for v in [gestational_age, postnatal_age_days, weight])
 
-    det_key    = "1A" if has_meta else "1B"
+    det_key = "1A" if has_meta else "1B"
     det_bundle = _load_model(f"model_{det_key}")
 
     row: dict = {**zone_features}
     if has_meta:
-        row["gestational_age"]    = gestational_age
+        row["gestational_age"] = gestational_age
         row["postnatal_age_days"] = postnatal_age_days
-        row["weight"]             = weight
+        row["weight"] = weight
 
-    df_row    = pd.DataFrame([row])
+    df_row = pd.DataFrame([row])
     det_feats = [f for f in det_bundle["features"] if f in df_row.columns]
     det_proba = float(det_bundle["model"].predict_proba(df_row[det_feats])[0, 1])
     jaundice_detected = det_proba >= detection_threshold
 
-    reg_key    = "2A" if has_meta else "2B"
+    reg_key = "2A" if has_meta else "2B"
     reg_bundle = _load_model(f"model_{reg_key}")
-    reg_feats  = [f for f in reg_bundle["features"] if f in df_row.columns]
-    raw_tsb    = float(reg_bundle["model"].predict(df_row[reg_feats])[0])
+    reg_feats = [f for f in reg_bundle["features"] if f in df_row.columns]
+    raw_tsb = float(reg_bundle["model"].predict(df_row[reg_feats])[0])
     tsb_estimated = round(float(np.clip(raw_tsb, 0.0, 40.0)), 2)
 
     return {
-        "jaundice_detected":   jaundice_detected,
-        "detection_proba":     round(det_proba, 4),
-        "tsb_estimated":       tsb_estimated,
-        "bhutani":             bhutani_risk_zone(tsb_estimated, postnatal_age_hours),
-        "model_detection":     det_key,
-        "model_regression":    reg_key,
+        "jaundice_detected": jaundice_detected,
+        "detection_proba": round(det_proba, 4),
+        "tsb_estimated": tsb_estimated,
+        "bhutani": bhutani_risk_zone(tsb_estimated, postnatal_age_hours),
+        "model_detection": det_key,
+        "model_regression": reg_key,
         "postnatal_age_hours": postnatal_age_hours,
     }
 
 
 if __name__ == "__main__":
     sample_zones = {
-        "zone1_R_mean": 185.0, "zone1_G_mean": 145.0, "zone1_B_mean": 95.0,
-        "zone1_R_std": 18.0,   "zone1_Y_mean": 148.0, "zone1_Cr_mean": 162.0,
-        "zone1_Cb_mean": 99.0, "zone1_H_mean": 26.0,  "zone1_S_mean": 45.0,
-        "zone1_L_mean": 53.0,  "zone1_Lab_L_mean": 61.0, "zone1_Lab_a_mean": 15.0,
-        "zone1_Lab_b_mean": 30.0, "zone1_Lab_L_std": 5.5,
-
-        "zone2_R_mean": 190.0, "zone2_G_mean": 148.0, "zone2_B_mean": 90.0,
-        "zone2_R_std": 16.0,   "zone2_Y_mean": 151.0, "zone2_Cr_mean": 165.0,
-        "zone2_Cb_mean": 97.0, "zone2_H_mean": 25.5,  "zone2_S_mean": 46.0,
-        "zone2_L_mean": 54.0,  "zone2_Lab_L_mean": 62.0, "zone2_Lab_a_mean": 16.0,
-        "zone2_Lab_b_mean": 32.0, "zone2_Lab_L_std": 5.1,
-
-        "zone3_R_mean": 188.0, "zone3_G_mean": 143.0, "zone3_B_mean": 88.0,
-        "zone3_R_std": 17.0,   "zone3_Y_mean": 150.0, "zone3_Cr_mean": 163.0,
-        "zone3_Cb_mean": 98.0, "zone3_H_mean": 26.1,  "zone3_S_mean": 44.5,
-        "zone3_L_mean": 52.0,  "zone3_Lab_L_mean": 60.5, "zone3_Lab_a_mean": 15.5,
-        "zone3_Lab_b_mean": 31.0, "zone3_Lab_L_std": 5.3,
+        "zone1_R_mean": 185.0,
+        "zone1_G_mean": 145.0,
+        "zone1_B_mean": 95.0,
+        "zone1_R_std": 18.0,
+        "zone1_Y_mean": 148.0,
+        "zone1_Cr_mean": 162.0,
+        "zone1_Cb_mean": 99.0,
+        "zone1_H_mean": 26.0,
+        "zone1_S_mean": 45.0,
+        "zone1_L_mean": 53.0,
+        "zone1_Lab_L_mean": 61.0,
+        "zone1_Lab_a_mean": 15.0,
+        "zone1_Lab_b_mean": 30.0,
+        "zone1_Lab_L_std": 5.5,
+        "zone2_R_mean": 190.0,
+        "zone2_G_mean": 148.0,
+        "zone2_B_mean": 90.0,
+        "zone2_R_std": 16.0,
+        "zone2_Y_mean": 151.0,
+        "zone2_Cr_mean": 165.0,
+        "zone2_Cb_mean": 97.0,
+        "zone2_H_mean": 25.5,
+        "zone2_S_mean": 46.0,
+        "zone2_L_mean": 54.0,
+        "zone2_Lab_L_mean": 62.0,
+        "zone2_Lab_a_mean": 16.0,
+        "zone2_Lab_b_mean": 32.0,
+        "zone2_Lab_L_std": 5.1,
+        "zone3_R_mean": 188.0,
+        "zone3_G_mean": 143.0,
+        "zone3_B_mean": 88.0,
+        "zone3_R_std": 17.0,
+        "zone3_Y_mean": 150.0,
+        "zone3_Cr_mean": 163.0,
+        "zone3_Cb_mean": 98.0,
+        "zone3_H_mean": 26.1,
+        "zone3_S_mean": 44.5,
+        "zone3_L_mean": 52.0,
+        "zone3_Lab_L_mean": 60.5,
+        "zone3_Lab_a_mean": 15.5,
+        "zone3_Lab_b_mean": 31.0,
+        "zone3_Lab_L_std": 5.3,
     }
 
     result = predict_patient(
@@ -208,7 +237,9 @@ if __name__ == "__main__":
     logging.info(
         "thresholds @ %sh     : P40=%.2f  P75=%.2f  P95=%.2f mg/dL",
         result["postnatal_age_hours"],
-        b["thresholds"]["p40"], b["thresholds"]["p75"], b["thresholds"]["p95"],
+        b["thresholds"]["p40"],
+        b["thresholds"]["p75"],
+        b["thresholds"]["p95"],
     )
     logging.info("action              : %s", b["action"])
 

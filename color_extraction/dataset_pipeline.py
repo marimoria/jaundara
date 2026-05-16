@@ -51,29 +51,28 @@ from .skin_mask import (
 
 LOG = logging.getLogger("jaundice_extractor")
 
-# ──────────────────────────────────────────────────────────────
-# Constants
-# ──────────────────────────────────────────────────────────────
 
-_TRAINING_ZONE_SUFFIXES = {"-1", "-2", "-3"}   # head, face/cheek, chest
+# Constants
+
+
+_TRAINING_ZONE_SUFFIXES = {"-1", "-2", "-3"}  # head, face/cheek, chest
 _VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
-_TSB_JAUNDICE_THRESHOLD  = 12.9          # mg/dL — used for severity split in train_models.py
-_N_AUGMENTED_VARIANTS    = 3
+_TSB_JAUNDICE_THRESHOLD = 12.9  # mg/dL — used for severity split in train_models.py
+_N_AUGMENTED_VARIANTS = 3
 
 # Rename map: raw CSV column → normalised name used throughout this codebase
 _CSV_COLUMN_RENAMES = {
-    "age(day)":    "postnatal_age_days",
+    "age(day)": "postnatal_age_days",
     "blood(mg/dL)": "blood_mg_dl",
-    "jaundice_label":   "jaundice_label",   # jaundice_label IS the ground-truth classification label
+    "jaundice_label": "jaundice_label",  # jaundice_label IS the ground-truth classification label
 }
 
 # Clinical metadata available to a mother at home (model inputs)
 _HOME_USER_METADATA_COLS = ["gestational_age", "postnatal_age_days", "weight"]
 
 
-# ──────────────────────────────────────────────────────────────
 # Step 1 — Image discovery
-# ──────────────────────────────────────────────────────────────
+
 
 def discover_training_zone_images(image_dir: str) -> list[str]:
     """
@@ -87,7 +86,8 @@ def discover_training_zone_images(image_dir: str) -> list[str]:
     ]
 
     training_paths = [
-        p for p in all_paths
+        p
+        for p in all_paths
         if any(Path(p).stem.endswith(s) for s in _TRAINING_ZONE_SUFFIXES)
     ]
 
@@ -98,9 +98,8 @@ def discover_training_zone_images(image_dir: str) -> list[str]:
     return training_paths
 
 
-# ──────────────────────────────────────────────────────────────
 # Step 2 + 3 — Feature extraction with augmentation
-# ──────────────────────────────────────────────────────────────
+
 
 def _extract_features_from_bgr_in_memory(
     bgr_image: np.ndarray,
@@ -115,15 +114,15 @@ def _extract_features_from_bgr_in_memory(
     """
     from .image_processor import _crop_center_half  # reuse the same crop logic
 
-    cropped         = _crop_center_half(bgr_image)
-    skin_mask       = build_neonatal_skin_mask(cropped)
+    cropped = _crop_center_half(bgr_image)
+    skin_mask = build_neonatal_skin_mask(cropped)
     skin_pixels_rgb = extract_valid_skin_pixels_rgb(cropped, skin_mask)
-    features        = compute_features_from_skin_pixels(skin_pixels_rgb)
+    features = compute_features_from_skin_pixels(skin_pixels_rgb)
 
     aug_label = f"_aug{aug_variant_index}" if is_augmented else ""
     return {
-        "patient_id":   patient_id,
-        "image_idx":    image_idx,
+        "patient_id": patient_id,
+        "image_idx": image_idx,
         "is_augmented": is_augmented,
         **features,
     }
@@ -165,37 +164,43 @@ def extract_features_with_augmentation(
                   Columns: patient_id, image_idx, is_augmented, + 14 features.
     """
     if not image_paths:
-        raise ValueError("No image paths provided to extract_features_with_augmentation.")
+        raise ValueError(
+            "No image paths provided to extract_features_with_augmentation."
+        )
 
     # 1. Setup variables
     already_done: set[str] = set()
-    rows: list[dict]       = []
+    rows: list[dict] = []
 
     # 2. Checkpoint logic
     if checkpoint_file and os.path.exists(checkpoint_file):
         existing = pd.read_csv(checkpoint_file)
         if "image_idx" in existing.columns:
             already_done = set(existing["image_idx"].tolist())
-            LOG.info(f"Resuming from checkpoint — {len(already_done)} original images done")
+            LOG.info(
+                f"Resuming from checkpoint — {len(already_done)} original images done"
+            )
 
     # 3. Create the pending list
     pending = [p for p in image_paths if os.path.basename(p) not in already_done]
-    
+
     # 4. Apply start_from override
     if start_from:
         pending = [p for p in pending if os.path.basename(p) >= start_from]
-        LOG.info(f"Manual override: Starting from {start_from} (Pending: {len(pending)})")
-        
+        LOG.info(
+            f"Manual override: Starting from {start_from} (Pending: {len(pending)})"
+        )
+
     LOG.info(f"Images to process: {len(pending)} (skipping {len(already_done)} done)")
 
     # 5. Extraction Loop
     n_ok = n_fail = 0
     flush_buffer: list[dict] = []
-    write_mode   = "a" if already_done else "w"
+    write_mode = "a" if already_done else "w"
     write_header = not bool(already_done)
 
     for i, path in enumerate(pending, 1):
-        filename   = os.path.basename(path)
+        filename = os.path.basename(path)
         patient_id = Path(path).stem.split("-")[0]
 
         try:
@@ -205,16 +210,16 @@ def extract_features_with_augmentation(
             flush_buffer.append(original_row)
 
             # ── Augmented variants (in-memory only) ───────────
-            raw_bgr  = cv2.imread(path)
-            variants = generate_brightness_augmented_variants(raw_bgr, n_variants) # type: ignore
+            raw_bgr = cv2.imread(path)
+            variants = generate_brightness_augmented_variants(raw_bgr, n_variants)  # type: ignore
 
             for aug_idx, aug_bgr in enumerate(variants):
                 aug_row = _extract_features_from_bgr_in_memory(
-                    bgr_image         = aug_bgr,
-                    patient_id        = patient_id,
-                    image_idx         = filename,
-                    is_augmented      = True,
-                    aug_variant_index = aug_idx,
+                    bgr_image=aug_bgr,
+                    patient_id=patient_id,
+                    image_idx=filename,
+                    is_augmented=True,
+                    aug_variant_index=aug_idx,
                 )
                 flush_buffer.append(aug_row)
 
@@ -232,10 +237,12 @@ def extract_features_with_augmentation(
         # Checkpoint flush
         if checkpoint_file and (i % save_every == 0 or i == len(pending)):
             chunk = pd.DataFrame(flush_buffer)
-            chunk.to_csv(checkpoint_file, mode=write_mode, header=write_header, index=False)
-            flush_buffer  = []
-            write_mode    = "a"
-            write_header  = False
+            chunk.to_csv(
+                checkpoint_file, mode=write_mode, header=write_header, index=False
+            )
+            flush_buffer = []
+            write_mode = "a"
+            write_header = False
             LOG.debug(f"\n  Checkpoint saved ({i}/{len(pending)})")
 
     print()
@@ -243,16 +250,15 @@ def extract_features_with_augmentation(
 
     # Combine checkpoint + any unflushed in-memory rows
     if checkpoint_file and os.path.exists(checkpoint_file):
-        saved  = pd.read_csv(checkpoint_file)
+        saved = pd.read_csv(checkpoint_file)
         extras = pd.DataFrame(flush_buffer)
         return pd.concat([saved, extras], ignore_index=True) if flush_buffer else saved
 
     return pd.DataFrame(flush_buffer)
 
 
-# ──────────────────────────────────────────────────────────────
 # Step 4 — Merge features with clinical CSV
-# ──────────────────────────────────────────────────────────────
+
 
 def _load_and_normalise_clinical_csv(csv_path: str) -> pd.DataFrame:
     """Load the NeoJaundice CSV and rename columns to consistent internal names."""
@@ -272,6 +278,7 @@ def pivot_zones_into_patient_row(features_df: pd.DataFrame) -> pd.DataFrame:
 
     This produces the 42-feature patient vector (3 zones × 14 features).
     """
+
     def zone_label(image_idx: str) -> str:
         stem = Path(image_idx).stem
         if stem.endswith("-1"):
@@ -330,10 +337,9 @@ def merge_features_with_clinical_metadata(
     clinical = _load_and_normalise_clinical_csv(clinical_csv_path)
 
     # One clinical record per patient (all three zone rows are identical)
-    clinical_per_patient = (
-        clinical[["patient_id"] + _HOME_USER_METADATA_COLS + ["blood_mg_dl", "jaundice_label"]]
-        .drop_duplicates(subset="patient_id")
-    )
+    clinical_per_patient = clinical[
+        ["patient_id"] + _HOME_USER_METADATA_COLS + ["blood_mg_dl", "jaundice_label"]
+    ].drop_duplicates(subset="patient_id")
 
     merged = patient_feature_df.merge(
         clinical_per_patient,
@@ -357,9 +363,8 @@ def merge_features_with_clinical_metadata(
     return merged
 
 
-# ──────────────────────────────────────────────────────────────
 # Step 5 — Write training CSV
-# ──────────────────────────────────────────────────────────────
+
 
 def write_training_csv(training_df: pd.DataFrame, output_path: str) -> None:
     """
@@ -375,26 +380,27 @@ def write_training_csv(training_df: pd.DataFrame, output_path: str) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
 
     # Enforce column order
-    zone_cols  = (
-        [f"zone1_{f}" for f in FEATURE_NAMES] +
-        [f"zone2_{f}" for f in FEATURE_NAMES] +
-        [f"zone3_{f}" for f in FEATURE_NAMES]
+    zone_cols = (
+        [f"zone1_{f}" for f in FEATURE_NAMES]
+        + [f"zone2_{f}" for f in FEATURE_NAMES]
+        + [f"zone3_{f}" for f in FEATURE_NAMES]
     )
-    meta_cols  = _HOME_USER_METADATA_COLS
+    meta_cols = _HOME_USER_METADATA_COLS
     label_cols = ["blood_mg_dl", "jaundice_label"]
 
     ordered = ["patient_id", "is_augmented"] + zone_cols + meta_cols + label_cols
     # Keep any extra columns at the end (future-proof)
-    extras  = [c for c in training_df.columns if c not in ordered]
-    final   = training_df[[c for c in ordered + extras if c in training_df.columns]]
+    extras = [c for c in training_df.columns if c not in ordered]
+    final = training_df[[c for c in ordered + extras if c in training_df.columns]]
 
     final.to_csv(output_path, index=False)
-    LOG.info(f"Training CSV saved → {output_path}  ({final.shape[0]} rows × {final.shape[1]} cols)")
+    LOG.info(
+        f"Training CSV saved → {output_path}  ({final.shape[0]} rows × {final.shape[1]} cols)"
+    )
 
 
-# ──────────────────────────────────────────────────────────────
 # High-level convenience runner
-# ──────────────────────────────────────────────────────────────
+
 
 def run_full_training_data_pipeline(
     image_dir: str,
@@ -406,7 +412,7 @@ def run_full_training_data_pipeline(
     save_every: int = 50,
     debug: bool = False,
     debug_dir: str = "debug",
-    start_from: str | None = None
+    start_from: str | None = None,
 ) -> pd.DataFrame:
     """
     End-to-end pipeline from raw images to a training-ready CSV.
@@ -438,13 +444,13 @@ def run_full_training_data_pipeline(
 
     # Steps 2 + 3 — Extract + augment
     feature_df = extract_features_with_augmentation(
-        image_paths     = image_paths,
-        n_variants      = n_augmented_variants,
-        checkpoint_file = checkpoint_file,
-        save_every      = save_every,
-        debug           = debug,
-        debug_dir       = debug_dir,
-        start_from      = start_from
+        image_paths=image_paths,
+        n_variants=n_augmented_variants,
+        checkpoint_file=checkpoint_file,
+        save_every=save_every,
+        debug=debug,
+        debug_dir=debug_dir,
+        start_from=start_from,
     )
 
     # Step 3b — Pivot zones into per-patient rows

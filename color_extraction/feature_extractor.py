@@ -34,10 +34,20 @@ from .color_math import rgb_to_hsl, rgb_to_lab
 
 # Ordered list of feature names — kept here as the single source of truth
 FEATURE_NAMES: list[str] = [
-    "R_mean", "G_mean", "B_mean", "R_std",
-    "Y_mean", "Cr_mean", "Cb_mean",
-    "H_mean", "S_mean", "L_mean",
-    "Lab_L_mean", "Lab_a_mean", "Lab_b_mean", "Lab_L_std",
+    "R_mean",
+    "G_mean",
+    "B_mean",
+    "R_std",
+    "Y_mean",
+    "Cr_mean",
+    "Cb_mean",
+    "H_mean",
+    "S_mean",
+    "L_mean",
+    "Lab_L_mean",
+    "Lab_a_mean",
+    "Lab_b_mean",
+    "Lab_L_std",
 ]
 
 
@@ -59,7 +69,7 @@ def compute_features_from_skin_pixels(skin_pixels_rgb: np.ndarray) -> dict:
         return {k: np.nan for k in FEATURE_NAMES}
 
     pixels_f = skin_pixels_rgb.astype(np.float32) / 255.0
-    R, G, B  = pixels_f[:, 0], pixels_f[:, 1], pixels_f[:, 2]
+    R, G, B = pixels_f[:, 0], pixels_f[:, 1], pixels_f[:, 2]
 
     hsl = np.array([rgb_to_hsl(r, g, b) for r, g, b in pixels_f])
     H, S, L = hsl[:, 0], hsl[:, 1], hsl[:, 2]
@@ -68,29 +78,29 @@ def compute_features_from_skin_pixels(skin_pixels_rgb: np.ndarray) -> dict:
     Lab_L, Lab_a, Lab_b = lab[:, 0], lab[:, 1], lab[:, 2]
 
     # YCrCb via OpenCV (faster than a pure-Python loop)
-    px_uint8  = skin_pixels_rgb.reshape(-1, 1, 3)
-    px_bgr    = cv2.cvtColor(px_uint8, cv2.COLOR_RGB2BGR)
-    ycrcb     = cv2.cvtColor(px_bgr, cv2.COLOR_BGR2YCrCb)
-    ycrcb_f   = ycrcb.reshape(-1, 3).astype(np.float32)
+    px_uint8 = skin_pixels_rgb.reshape(-1, 1, 3)
+    px_bgr = cv2.cvtColor(px_uint8, cv2.COLOR_RGB2BGR)
+    ycrcb = cv2.cvtColor(px_bgr, cv2.COLOR_BGR2YCrCb)
+    ycrcb_f = ycrcb.reshape(-1, 3).astype(np.float32)
     Y_ch, Cr, Cb = ycrcb_f[:, 0], ycrcb_f[:, 1], ycrcb_f[:, 2]
 
     return {
         # ── RGB ──────────────────────────────────────────────────
-        "R_mean":     round(float(R.mean() * 255), 4),
-        "G_mean":     round(float(G.mean() * 255), 4),
-        "B_mean":     round(float(B.mean() * 255), 4),
-        "R_std":      round(float(R.std()  * 255), 4),
+        "R_mean": round(float(R.mean() * 255), 4),
+        "G_mean": round(float(G.mean() * 255), 4),
+        "B_mean": round(float(B.mean() * 255), 4),
+        "R_std": round(float(R.std() * 255), 4),
         # ── YCrCb ────────────────────────────────────────────────
-        "Y_mean":     round(float(Y_ch.mean()), 4),
-        "Cr_mean":    round(float(Cr.mean()),   4),
-        "Cb_mean":    round(float(Cb.mean()),   4),
+        "Y_mean": round(float(Y_ch.mean()), 4),
+        "Cr_mean": round(float(Cr.mean()), 4),
+        "Cb_mean": round(float(Cb.mean()), 4),
         # ── HSL ──────────────────────────────────────────────────
-        "H_mean":     round(float(H.mean()), 4),
-        "S_mean":     round(float(S.mean()), 4),
-        "L_mean":     round(float(L.mean()), 4),
+        "H_mean": round(float(H.mean()), 4),
+        "S_mean": round(float(S.mean()), 4),
+        "L_mean": round(float(L.mean()), 4),
         # ── CIELAB ───────────────────────────────────────────────
         "Lab_L_mean": round(float(Lab_L.mean()), 4),
         "Lab_a_mean": round(float(Lab_a.mean()), 4),
         "Lab_b_mean": round(float(Lab_b.mean()), 4),
-        "Lab_L_std":  round(float(Lab_L.std()),  4),
+        "Lab_L_std": round(float(Lab_L.std()), 4),
     }

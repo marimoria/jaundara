@@ -24,7 +24,8 @@ from pathlib import Path
 import numpy as np
 import cv2
 import matplotlib
-matplotlib.use("Agg")          # headless — saves to file, never opens a window
+
+matplotlib.use("Agg")  # headless — saves to file, never opens a window
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
@@ -32,19 +33,18 @@ from .color_math import rgb_to_lab
 
 LOG = logging.getLogger("jaundice_extractor")
 
-# ──────────────────────────────────────────────────────────────
+
 # Colour palette (dark theme)
-# ──────────────────────────────────────────────────────────────
-_BG_DARK    = "#1a1a2e"
-_BG_PANEL   = "#16213e"
-_SPINE_COL  = "#444466"
-_TEXT_COL   = "#e0e0f0"
-_TICK_COL   = "gray"
+
+_BG_DARK = "#1a1a2e"
+_BG_PANEL = "#16213e"
+_SPINE_COL = "#444466"
+_TEXT_COL = "#e0e0f0"
+_TICK_COL = "gray"
 
 
-# ──────────────────────────────────────────────────────────────
 # Public API
-# ──────────────────────────────────────────────────────────────
+
 
 def save_debug_figure(
     image_path: str,
@@ -69,26 +69,29 @@ def save_debug_figure(
     os.makedirs(output_dir, exist_ok=True)
     out_path = os.path.join(output_dir, f"{Path(image_path).stem}_debug.png")
 
-    img_rgb  = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
+    img_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
     coverage = float((skin_mask > 0).sum()) / skin_mask.size * 100
 
-    overlay  = _build_darkened_overlay(img_rgb, skin_mask)
+    overlay = _build_darkened_overlay(img_rgb, skin_mask)
 
     fig = plt.figure(figsize=(18, 10), facecolor=_BG_DARK)
     fig.suptitle(
         f"Debug: {Path(image_path).name}   |   Valid skin pixels: {len(skin_pixels_rgb):,}",
-        color="white", fontsize=13, fontweight="bold", y=0.98,
+        color="white",
+        fontsize=13,
+        fontweight="bold",
+        y=0.98,
     )
 
     gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.45, wspace=0.35)
 
-    ax_orig    = fig.add_subplot(gs[0, 0])
-    ax_mask    = fig.add_subplot(gs[0, 1])
+    ax_orig = fig.add_subplot(gs[0, 0])
+    ax_mask = fig.add_subplot(gs[0, 1])
     ax_overlay = fig.add_subplot(gs[0, 2])
-    ax_stats   = fig.add_subplot(gs[0, 3])
-    ax_rgb     = fig.add_subplot(gs[1, 0:2])
-    ax_lab_b   = fig.add_subplot(gs[1, 2])
-    ax_cr      = fig.add_subplot(gs[1, 3])
+    ax_stats = fig.add_subplot(gs[0, 3])
+    ax_rgb = fig.add_subplot(gs[1, 0:2])
+    ax_lab_b = fig.add_subplot(gs[1, 2])
+    ax_cr = fig.add_subplot(gs[1, 3])
 
     _style_axes([ax_orig, ax_mask, ax_overlay, ax_stats, ax_rgb, ax_lab_b, ax_cr])
 
@@ -105,14 +108,13 @@ def save_debug_figure(
     LOG.info(f"    Debug figure saved → {out_path}")
 
 
-# ──────────────────────────────────────────────────────────────
 # Internal helpers
-# ──────────────────────────────────────────────────────────────
+
 
 def _build_darkened_overlay(img_rgb: np.ndarray, skin_mask: np.ndarray) -> np.ndarray:
     """Return image with non-skin pixels dimmed to 20 % of original brightness."""
-    overlay  = img_rgb.copy()
-    dark     = (overlay * 0.2).astype(np.uint8)
+    overlay = img_rgb.copy()
+    dark = (overlay * 0.2).astype(np.uint8)
     mask_3ch = np.stack([skin_mask] * 3, axis=-1) > 0
     return np.where(mask_3ch, overlay, dark)
 
@@ -147,25 +149,41 @@ def _draw_feature_text(ax, features: dict) -> None:
     if any(not np.isnan(v) for v in features.values()):
         lines = [f"{'Feature':<14} {'Value':>8}", "─" * 24]
         for k, v in features.items():
-            lines.append(f"{k:<14} {v:>8.3f}" if not np.isnan(v) else f"{k:<14} {'NaN':>8}")
+            lines.append(
+                f"{k:<14} {v:>8.3f}" if not np.isnan(v) else f"{k:<14} {'NaN':>8}"
+            )
         text = "\n".join(lines)
     else:
         text = "⚠  No valid skin pixels\nAll features = NaN"
 
     ax.text(
-        0.05, 0.95, text,
+        0.05,
+        0.95,
+        text,
         transform=ax.transAxes,
-        fontsize=7.5, verticalalignment="top",
-        fontfamily="monospace", color=_TEXT_COL,
+        fontsize=7.5,
+        verticalalignment="top",
+        fontfamily="monospace",
+        color=_TEXT_COL,
     )
     ax.set_title("Extracted Features", color="white", fontsize=9)
 
 
 def _draw_rgb_histogram(ax, skin_pixels_rgb: np.ndarray) -> None:
     if len(skin_pixels_rgb) > 0:
-        for ch, col, lbl in [(0, "#ff6b6b", "R"), (1, "#6bff9e", "G"), (2, "#6bb5ff", "B")]:
-            ax.hist(skin_pixels_rgb[:, ch], bins=50, color=col, alpha=0.6,
-                    label=lbl, density=True)
+        for ch, col, lbl in [
+            (0, "#ff6b6b", "R"),
+            (1, "#6bff9e", "G"),
+            (2, "#6bb5ff", "B"),
+        ]:
+            ax.hist(
+                skin_pixels_rgb[:, ch],
+                bins=50,
+                color=col,
+                alpha=0.6,
+                label=lbl,
+                density=True,
+            )
         ax.legend(fontsize=8, facecolor=_BG_PANEL, labelcolor="white")
     else:
         ax.text(0.5, 0.5, "No data", ha="center", va="center", color="gray")
@@ -178,10 +196,15 @@ def _draw_rgb_histogram(ax, skin_pixels_rgb: np.ndarray) -> None:
 def _draw_lab_b_histogram(ax, skin_pixels_rgb: np.ndarray) -> None:
     if len(skin_pixels_rgb) > 0:
         pixels_f = skin_pixels_rgb.astype(np.float32) / 255.0
-        lab_b    = np.array([rgb_to_lab(r, g, b)[2] for r, g, b in pixels_f])
+        lab_b = np.array([rgb_to_lab(r, g, b)[2] for r, g, b in pixels_f])
         ax.hist(lab_b, bins=40, color="#f9ca24", alpha=0.85, density=True)
-        ax.axvline(lab_b.mean(), color="white", linestyle="--", linewidth=1.2,
-                   label=f"mean={lab_b.mean():.2f}")
+        ax.axvline(
+            lab_b.mean(),
+            color="white",
+            linestyle="--",
+            linewidth=1.2,
+            label=f"mean={lab_b.mean():.2f}",
+        )
         ax.legend(fontsize=8, facecolor=_BG_PANEL, labelcolor="white")
 
     ax.set_title("Lab b*  (blue–yellow / jaundice)", color="white", fontsize=9)
@@ -191,12 +214,17 @@ def _draw_lab_b_histogram(ax, skin_pixels_rgb: np.ndarray) -> None:
 
 def _draw_cr_histogram(ax, skin_pixels_rgb: np.ndarray) -> None:
     if len(skin_pixels_rgb) > 0:
-        px_u8  = skin_pixels_rgb.reshape(-1, 1, 3)
+        px_u8 = skin_pixels_rgb.reshape(-1, 1, 3)
         px_bgr = cv2.cvtColor(px_u8, cv2.COLOR_RGB2BGR)
-        cr_ch  = cv2.cvtColor(px_bgr, cv2.COLOR_BGR2YCrCb).reshape(-1, 3)[:, 1]
+        cr_ch = cv2.cvtColor(px_bgr, cv2.COLOR_BGR2YCrCb).reshape(-1, 3)[:, 1]
         ax.hist(cr_ch.astype(float), bins=40, color="#ff9f43", alpha=0.85, density=True)
-        ax.axvline(cr_ch.mean(), color="white", linestyle="--", linewidth=1.2,
-                   label=f"mean={cr_ch.mean():.2f}")
+        ax.axvline(
+            cr_ch.mean(),
+            color="white",
+            linestyle="--",
+            linewidth=1.2,
+            label=f"mean={cr_ch.mean():.2f}",
+        )
         ax.legend(fontsize=8, facecolor=_BG_PANEL, labelcolor="white")
 
     ax.set_title("Cr channel (YCrCb)", color="white", fontsize=9)

@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 warnings.filterwarnings("ignore")
 optuna.logging.set_verbosity(optuna.logging.INFO)
 
-DATA_PATH = "__data__/neo/out/training.csv"
+DATA_PATH = "__data__/neo/out/training_fix.csv"
 TSB_COL = "blood_mg_dl"
 SHAP_CUTOFF = 0.01
 N_TRIALS = 100

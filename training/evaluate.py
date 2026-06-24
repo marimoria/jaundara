@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-DATA_PATH = "__data__/neo/out/training.csv"
+DATA_PATH = "__data__/neo/out/training_fix.csv"
 MODELS_DIR = "__models__"
 PLOTS_DIR = "__plots__"
 DETECT_LABEL = "jaundice_label"

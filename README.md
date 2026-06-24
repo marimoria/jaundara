@@ -108,7 +108,7 @@ Run the `color_extraction` module to process a raw image directory and match it 
 python -m color_extraction training \
     --image_dir __data__/neo/images \
     --clinical_csv __data__/neo/neo.csv \
-    --output __data__/neo/out/training.csv
+    --output __data__/neo/out/training_fix.csv
 
 # Single-image debug extraction
 python -m color_extraction debug \

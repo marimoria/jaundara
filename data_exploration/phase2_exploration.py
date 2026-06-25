@@ -77,7 +77,7 @@ print(res_df.to_string(index=False))
 # 3. NORMALITY TEST FOR RESPONSE VARIABLE (blood_mg_dl)
 # ---------------------------------------------------------------
 x = df["blood_mg_dl"].dropna().values
-stat, p = stats.kstest(x, 'norm', args=(x.mean(), x.std(ddof=1)))
+stat, p = stats.kstest(x, 'norm', args=(x.mean(), x.std(ddof=1)))  # type: ignore
 
 print("\n=== Normality for blood_mg_dl ===")
 print(f"KS Statistic : {stat:.4f}")

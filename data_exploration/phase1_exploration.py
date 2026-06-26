@@ -66,7 +66,25 @@ os.makedirs(PNG_DIR, exist_ok=True)
 apply_academic_style()
 
 df_all = pd.read_csv(DATA_PATH)
-orig   = df_all[df_all["is_augmented"] == False].copy()
+
+# ── Null removal ──────────────────────────────────────────────────────────────
+rows_before = len(df_all)
+null_counts_before = df_all.isnull().sum()
+null_cols_before   = null_counts_before[null_counts_before > 0]
+
+if len(null_cols_before):
+    log.info("Null removal: dropping rows with nulls in %d column(s): %s",
+             len(null_cols_before), null_cols_before.to_dict())
+    df_all = df_all.dropna().reset_index(drop=True)
+    rows_dropped = rows_before - len(df_all)
+    log.info("  Dropped %d row(s)  (%d → %d)", rows_dropped, rows_before, len(df_all))
+    df_all.to_csv(DATA_PATH, index=False)
+    log.info("  Saved cleaned dataset → %s", DATA_PATH)
+else:
+    log.info("Null removal: no nulls found, dataset unchanged.")
+# ─────────────────────────────────────────────────────────────────────────────
+
+orig = df_all[df_all["is_augmented"] == False].copy()
 
 ZONE_FEATURES = [c for c in df_all.columns if c.startswith("zone")]
 META_FEATURES = ["gestational_age", "postnatal_age_days", "weight"]

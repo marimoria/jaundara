@@ -59,7 +59,7 @@ GRAY    = "#636e72"
 ORANGE  = "#e17055"
 
 REDUNDANCY_THRESHOLD = 0.90
-KEY_FEATURES = ["Lab_b_mean", "Cb_mean", "H_mean", "B_mean", "S_mean"]
+KEY_FEATURES = ["Lab_b_mean", "Cb_mean", "H_mean"]
 
 os.makedirs(CSV_DIR, exist_ok=True)
 os.makedirs(PNG_DIR, exist_ok=True)

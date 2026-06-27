@@ -1,5 +1,5 @@
 """
-tune_regression.py — Optuna Bayesian Optimization for TSB Regressors
+tune_regression.py — Optuna Bayesian Optimization for TSB Regressor (Model 2)
 
 Runs N_TRIALS trials to find LightGBM hyperparameters minimizing MAE.
 
@@ -47,7 +47,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def _define_feature_sets(df: pd.DataFrame) -> tuple[list, list]:
+def _define_feature_sets(df: pd.DataFrame) -> list:
     EXCLUDE_PATTERNS = (
         "_R_mean", "_G_mean", "_Y_mean",
         "_Lab_L_mean", "_Lab_a_mean",
@@ -73,7 +73,7 @@ def _define_feature_sets(df: pd.DataFrame) -> tuple[list, list]:
         f for f in ["gestational_age", "postnatal_age_days"]
         if f in df.columns
     ]
-    return color_features, meta_features
+    return color_features + meta_features
 
 
 # ── load + split ──────────────────────────────────────────────────────────────
@@ -82,11 +82,9 @@ df_raw = pd.read_csv(DATA_PATH)
 df = build_features(df_raw)
 df = df[df[TSB_COL] > 0.5].copy()
 
-COLOR_FEATURES, META_FEATURES = _define_feature_sets(df)
-ALL_FEATURES = COLOR_FEATURES + META_FEATURES
+ALL_FEATURES = _define_feature_sets(df)
 
-logging.info("Features: color=%d  meta=%d  total=%d",
-             len(COLOR_FEATURES), len(META_FEATURES), len(ALL_FEATURES))
+logging.info("Features: total=%d", len(ALL_FEATURES))
 
 patients = df[~df["is_augmented"]]["patient_id"].unique()
 train_p, temp_p = train_test_split(patients, test_size=0.30, random_state=42)

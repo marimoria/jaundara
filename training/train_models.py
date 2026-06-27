@@ -2,12 +2,12 @@
 train_models.py — Neonatal Jaundice Detection
 
 Architecture:
-  Model 1A/1B  — binary detection gate (jaundiced vs normal)
-  Model 2A/2B  — TSB regressor: predicts blood_mg_dl as a continuous value
+  Model 1  — binary detection gate (jaundiced vs normal)
+  Model 2  — TSB regressor: predicts blood_mg_dl as a continuous value
 
 Inference pipeline:
-  1. Model 1A/1B detects jaundice (binary gate).
-  2. Model 2A/2B estimates bilirubin (mg/dL).
+  1. Model 1 detects jaundice (binary gate).
+  2. Model 2 estimates bilirubin (mg/dL).
   3. Flutter app evaluates the Bhutani Nomogram using (tsb_estimate, postnatal_age_days)
      to surface the risk zone and recommended action.
 
@@ -88,12 +88,12 @@ LGB_REGRESSION_PARAMS = dict(
     boosting_type="gbdt",
     objective="regression_l1",
     metric="mae",
-    n_estimators=1400,
-    learning_rate=0.05093543755558586,
-    num_leaves=15,
-    min_child_samples=13,
-    subsample=0.581256713045798,
-    colsample_bytree=0.5647836560380153,
+    n_estimators=700,
+    learning_rate=0.01558230773982519,
+    num_leaves=93,
+    min_child_samples=17,
+    subsample=0.7969181420869593,
+    colsample_bytree=0.7886165660038295,
     random_state=42,
     verbose=-1,
 )
@@ -235,7 +235,7 @@ def _define_feature_sets(df: pd.DataFrame) -> tuple[list, list]:
     ]
     meta_features = [f for f in meta_features if f in df.columns]
 
-    return color_features, meta_features
+    return color_features + meta_features # type: ignore
 
 
 # ── data loading ──────────────────────────────────────────────────────────────
@@ -244,13 +244,10 @@ df_raw = pd.read_csv(DATA_PATH)
 log.info("Loaded  rows=%d  cols=%d", len(df_raw), len(df_raw.columns))
 
 df = build_features(df_raw)
-COLOR_FEATURES, META_FEATURES = _define_feature_sets(df)
-ALL_FEATURES = COLOR_FEATURES + META_FEATURES
+ALL_FEATURES = _define_feature_sets(df)
 
-log.info("color_features=%d  meta_features=%d  total=%d",
-         len(COLOR_FEATURES), len(META_FEATURES), len(ALL_FEATURES))
-log.info("COLOR_FEATURES : %s", COLOR_FEATURES)
-log.info("META_FEATURES  : %s", META_FEATURES)
+log.info("total_features=%d", len(ALL_FEATURES))
+log.info("ALL_FEATURES : %s", ALL_FEATURES)
 
 tsb = df[TSB_COL]
 log.info("TSB: min=%.2f  max=%.2f  mean=%.2f  std=%.2f",
@@ -505,23 +502,21 @@ def save_model(model, features: list, name: str, model_type: str):
 
 all_results = {}
 
-for tag, feat_set, label, trainer, evaluator, is_clf in [
-    ("1A", ALL_FEATURES,   DETECT_LABEL, train_binary_clf,    evaluate_binary,    True),
-    ("1B", COLOR_FEATURES, DETECT_LABEL, train_binary_clf,    evaluate_binary,    True),
-    ("2A", ALL_FEATURES,   TSB_COL,      train_tsb_regressor, evaluate_regression, False),
-    ("2B", COLOR_FEATURES, TSB_COL,      train_tsb_regressor, evaluate_regression, False),
+for tag, label, trainer, evaluator, is_clf in [
+    ("1", DETECT_LABEL, train_binary_clf,    evaluate_binary,     True),
+    ("2", TSB_COL,      train_tsb_regressor, evaluate_regression, False),
 ]:
     model_type = "binary" if is_clf else "tsb_regressor"
     log.info("─── model %s ───", tag)
 
     # pass 1: full feature set → SHAP selection
     m_full = trainer(
-        train_df[feat_set], train_df[label],
-        val_df[feat_set],   val_df[label],
+        train_df[ALL_FEATURES], train_df[label],
+        val_df[ALL_FEATURES],   val_df[label],
         model_tag=f"{tag}_full",
     )
     feats = _shap_select(
-        m_full, val_df[feat_set], feat_set,
+        m_full, val_df[ALL_FEATURES], ALL_FEATURES, # type: ignore
         model_tag=tag, is_classifier=is_clf,
     )
 
@@ -548,24 +543,22 @@ log.info("─── summary ───")
 log.info("%-6s %5s | %8s %8s %7s | %9s %9s %8s",
          "Model", "Feat", "Val Acc", "Val AUC", "Val F1",
          "Test Acc", "Test AUC", "Test F1")
-for k in ["1A", "1B"]:
-    r = all_results[k]
-    v, t = r["val"], r["test"]
-    log.info("%-6s %5d | %7.2f%% %7.2f%% %6.2f%% | %8.2f%% %8.2f%% %7.2f%%",
-             k, r["n_feat"],
-             v["accuracy"]*100, v["auc_roc"]*100, v["f1"]*100,
-             t["accuracy"]*100, t["auc_roc"]*100, t["f1"]*100)
+r = all_results["1"]
+v, t = r["val"], r["test"]
+log.info("%-6s %5d | %7.2f%% %7.2f%% %6.2f%% | %8.2f%% %8.2f%% %7.2f%%",
+         "1", r["n_feat"],
+         v["accuracy"]*100, v["auc_roc"]*100, v["f1"]*100,
+         t["accuracy"]*100, t["auc_roc"]*100, t["f1"]*100)
 
 log.info("%-6s %5s | %9s %9s %7s %8s | %9s %9s %7s %8s",
          "Model", "Feat", "Val MAE", "Val RMSE", "Val R²", "±2mgdL%",
          "Test MAE", "Test RMSE", "Test R²", "±2mgdL%")
-for k in ["2A", "2B"]:
-    r = all_results[k]
-    v, t = r["val"], r["test"]
-    log.info("%-6s %5d | %9.3f %9.3f %7.4f %7.1f%% | %9.3f %9.3f %7.4f %7.1f%%",
-             k, r["n_feat"],
-             v["mae"], v["rmse"], v["r2"], v["within_2_mgdl_pct"],
-             t["mae"], t["rmse"], t["r2"], t["within_2_mgdl_pct"])
+r = all_results["2"]
+v, t = r["val"], r["test"]
+log.info("%-6s %5d | %9.3f %9.3f %7.4f %7.1f%% | %9.3f %9.3f %7.4f %7.1f%%",
+         "2", r["n_feat"],
+         v["mae"], v["rmse"], v["r2"], v["within_2_mgdl_pct"],
+         t["mae"], t["rmse"], t["r2"], t["within_2_mgdl_pct"])
 
 if LOGGING_ENABLED:
     _save_json({
@@ -580,7 +573,7 @@ if LOGGING_ENABLED:
                 "val":  all_results[k]["val"],
                 "test": all_results[k]["test"],
             }
-            for k in ["1A", "1B", "2A", "2B"]
+            for k in ["1", "2"]
         },
     }, "00_MASTER_SUMMARY.json")
     log.info("artifacts saved to: %s", LOG_DIR.resolve())  # type: ignore

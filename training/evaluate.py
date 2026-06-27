@@ -1,6 +1,6 @@
 """
 evaluate.py
-Loads all 4 saved models (1A/1B: detection classifiers, 2A/2B: TSB regressors)
+Loads both saved models (1: detection classifier, 2: TSB regressor)
 and produces evaluation plots. Run after train_models.py.
 
 Uses training_engineered.csv and applies the same build_features() engineering
@@ -93,71 +93,61 @@ def safe_feats(feats: list, df: pd.DataFrame) -> list:
 
 # ── classification models 1A / 1B ────────────────────────────────────────────
 
-roc_data = {}
+bundle_1 = load_model("model_1")
+feats_1  = safe_feats(bundle_1["features"], test_df)
+X, y     = test_df[feats_1], test_df[DETECT_LABEL]
 
-for key, desc in [("1A", "Detection + Meta"), ("1B", "Detection Only")]:
-    bundle = load_model(f"model_{key}")
-    feats  = safe_feats(bundle["features"], test_df)
-    X, y   = test_df[feats], test_df[DETECT_LABEL]
+preds_1 = bundle_1["model"].predict(X)
+proba_1 = bundle_1["model"].predict_proba(X)[:, 1]
 
-    preds = bundle["model"].predict(X)
-    proba = bundle["model"].predict_proba(X)[:, 1]
+acc = accuracy_score(y, preds_1)
+auc = roc_auc_score(y, proba_1)
+f1  = f1_score(y, preds_1, zero_division=0)
+fpr, tpr, _ = roc_curve(y, proba_1)
 
-    acc = accuracy_score(y, preds)
-    auc = roc_auc_score(y, proba)
-    f1  = f1_score(y, preds, zero_division=0)
-    fpr, tpr, _ = roc_curve(y, proba)
-    roc_data[key] = (fpr, tpr, auc, desc)
-
-    logging.info("Model %s: %s  |  features=%d", key, desc, len(feats))
-    logging.info("  Accuracy : %.2f%%", acc * 100)
-    logging.info("  AUC      : %.2f%%", auc * 100)
-    logging.info("  F1       : %.2f%%", f1 * 100)
-    logging.info(classification_report(y, preds,
-                                        target_names=["Normal", "Jaundiced"],
-                                        zero_division=0))
+logging.info("Model 1: Detection  |  features=%d", len(feats_1))
+logging.info("  Accuracy : %.2f%%", acc * 100)
+logging.info("  AUC      : %.2f%%", auc * 100)
+logging.info("  F1       : %.2f%%", f1 * 100)
+logging.info(classification_report(y, preds_1,
+                                    target_names=["Normal", "Jaundiced"],
+                                    zero_division=0))
 
 
 # ── regression models 2A / 2B ─────────────────────────────────────────────────
 
-reg_results = {}
+bundle_2 = load_model("model_2")
+feats_2  = safe_feats(bundle_2["features"], test_df)
+y_true   = test_df[TSB_COL]
 
-for key, desc in [("2A", "TSB Regressor + Meta"), ("2B", "TSB Regressor Only")]:
-    bundle = load_model(f"model_{key}")
-    feats  = safe_feats(bundle["features"], test_df)
-    X      = test_df[feats]
-    y_true = test_df[TSB_COL]
+preds_2 = np.clip(bundle_2["model"].predict(test_df[feats_2]), 0.0, TSB_CLIP_MAX)
 
-    preds = np.clip(bundle["model"].predict(X), 0.0, TSB_CLIP_MAX)
+mae  = mean_absolute_error(y_true, preds_2)
+rmse = float(np.sqrt(mean_squared_error(y_true, preds_2)))
+r2   = r2_score(y_true, preds_2)
+w2   = float(np.mean(np.abs(y_true - preds_2) <= 2.0) * 100)
+w3   = float(np.mean(np.abs(y_true - preds_2) <= 3.0) * 100)
+bias = float(np.mean(preds_2 - y_true))
 
-    mae  = mean_absolute_error(y_true, preds)
-    rmse = float(np.sqrt(mean_squared_error(y_true, preds)))
-    r2   = r2_score(y_true, preds)
-    w2   = float(np.mean(np.abs(y_true - preds) <= 2.0) * 100)
-    w3   = float(np.mean(np.abs(y_true - preds) <= 3.0) * 100)
-    bias = float(np.mean(preds - y_true))
+logging.info("Model 2: TSB Regressor  |  features=%d", len(feats_2))
+logging.info("  MAE       : %.3f mg/dL", mae)
+logging.info("  RMSE      : %.3f mg/dL", rmse)
+logging.info("  R²        : %.4f", r2)
+logging.info("  Within ±2 : %.1f%%", w2)
+logging.info("  Within ±3 : %.1f%%", w3)
+logging.info("  Bias      : %+.3f mg/dL", bias)
 
-    logging.info("Model %s: %s  |  features=%d", key, desc, len(feats))
-    logging.info("  MAE       : %.3f mg/dL", mae)
-    logging.info("  RMSE      : %.3f mg/dL", rmse)
-    logging.info("  R²        : %.4f", r2)
-    logging.info("  Within ±2 : %.1f%%", w2)
-    logging.info("  Within ±3 : %.1f%%", w3)
-    logging.info("  Bias      : %+.3f mg/dL", bias)
-
-    reg_results[key] = {
-        "y_true": y_true.values, "preds": preds, "desc": desc,
-        "mae": mae, "rmse": rmse, "r2": r2, "w2": w2, "bias": bias,
-    }
+reg_results = {
+    "y_true": y_true.values, "preds": preds_2,
+    "mae": mae, "rmse": rmse, "r2": r2, "w2": w2, "bias": bias,
+}
 
 
 # ── plot 1: ROC curves ────────────────────────────────────────────────────────
 
 fig1, ax = plt.subplots(figsize=(8, 5))
-fig1.suptitle("ROC Curves — Detection Models 1A / 1B", fontsize=13, fontweight="bold")
-for key in ["1A", "1B"]:
-    fpr, tpr, auc, desc = roc_data[key]
-    ax.plot(fpr, tpr, lw=2, label=f"Model {key} — {desc} (AUC={auc*100:.1f}%)")
+fig1.suptitle("ROC Curve — Detection Model 1", fontsize=13, fontweight="bold")
+ax.plot(fpr, tpr, lw=2, label=f"Model 1 — Detection (AUC={auc*100:.1f}%)")
 ax.plot([0, 1], [0, 1], "k--", lw=1, label="Random (AUC=50%)")
 ax.set_xlabel("False Positive Rate")
 ax.set_ylabel("True Positive Rate")
@@ -170,16 +160,12 @@ logging.info("roc_curves.png saved")
 
 # ── plot 2: confusion matrices ────────────────────────────────────────────────
 
-fig2, axes2 = plt.subplots(1, 2, figsize=(10, 4))
-fig2.suptitle("Confusion Matrices — Detection Models", fontsize=13, fontweight="bold")
-for ax, key in zip(axes2, ["1A", "1B"]):
-    bundle = load_model(f"model_{key}")
-    feats  = safe_feats(bundle["features"], test_df)
-    preds  = bundle["model"].predict(test_df[feats])
-    cm     = confusion_matrix(test_df[DETECT_LABEL], preds)
-    disp   = ConfusionMatrixDisplay(cm, display_labels=["Normal", "Jaundiced"])
-    disp.plot(ax=ax, colorbar=False)
-    ax.set_title(f"Model {key}", fontsize=10)
+fig2, ax2 = plt.subplots(figsize=(5, 4))
+fig2.suptitle("Confusion Matrix — Detection Model 1", fontsize=13, fontweight="bold")
+cm   = confusion_matrix(test_df[DETECT_LABEL], preds_1)
+disp = ConfusionMatrixDisplay(cm, display_labels=["Normal", "Jaundiced"])
+disp.plot(ax=ax2, colorbar=False)
+ax2.set_title("Model 1", fontsize=10)
 plt.tight_layout()
 plt.savefig(os.path.join(PLOTS_DIR, "confusion_matrices.png"), dpi=150)
 logging.info("confusion_matrices.png saved")
@@ -187,46 +173,39 @@ logging.info("confusion_matrices.png saved")
 
 # ── plot 3: regression scatter + residuals ────────────────────────────────────
 
-fig3, axes3 = plt.subplots(2, 2, figsize=(13, 10))
-fig3.suptitle("TSB Regression Evaluation — Models 2A / 2B",
-              fontsize=13, fontweight="bold")
+fig3, axes3 = plt.subplots(1, 2, figsize=(13, 5))
+fig3.suptitle("TSB Regression Evaluation — Model 2", fontsize=13, fontweight="bold")
 
-for col_idx, key in enumerate(["2A", "2B"]):
-    rr       = reg_results[key]
-    y_true   = rr["y_true"]
-    preds    = rr["preds"]
-    residuals = preds - y_true
+y_true    = reg_results["y_true"]
+preds     = reg_results["preds"]
+residuals = preds - y_true
 
-    ax_scatter = axes3[0, col_idx]
-    ax_scatter.scatter(y_true, preds, alpha=0.35, s=12,
-                       color="steelblue", edgecolors="none")
-    lims = [min(y_true.min(), preds.min()) - 1,
-            max(y_true.max(), preds.max()) + 1]
-    ax_scatter.plot(lims, lims, "r--", lw=1.5, label="Perfect prediction")
-    ax_scatter.set_xlabel("True TSB (mg/dL)")
-    ax_scatter.set_ylabel("Predicted TSB (mg/dL)")
-    ax_scatter.set_title(
-        f"Model {key} — {rr['desc']}\n"
-        f"MAE={rr['mae']:.2f}  RMSE={rr['rmse']:.2f}  R²={rr['r2']:.3f}",
-        fontsize=9,
-    )
-    ax_scatter.legend(fontsize=8)
-    ax_scatter.grid(alpha=0.3)
+ax_scatter = axes3[0]
+ax_scatter.scatter(y_true, preds, alpha=0.35, s=12, color="steelblue", edgecolors="none")
+lims = [min(y_true.min(), preds.min()) - 1, max(y_true.max(), preds.max()) + 1]
+ax_scatter.plot(lims, lims, "r--", lw=1.5, label="Perfect prediction")
+ax_scatter.set_xlabel("True TSB (mg/dL)")
+ax_scatter.set_ylabel("Predicted TSB (mg/dL)")
+ax_scatter.set_title(
+    f"Model 2 — TSB Regressor\nMAE={reg_results['mae']:.2f}  RMSE={reg_results['rmse']:.2f}  R²={reg_results['r2']:.3f}",
+    fontsize=9,
+)
+ax_scatter.legend(fontsize=8)
+ax_scatter.grid(alpha=0.3)
 
-    ax_resid = axes3[1, col_idx]
-    ax_resid.hist(residuals, bins=40, color="coral", edgecolor="white", alpha=0.8)
-    ax_resid.axvline(0,  color="black", lw=1.2, linestyle="--")
-    ax_resid.axvline(-2, color="green", lw=1,   linestyle=":", label="±2 mg/dL")
-    ax_resid.axvline(+2, color="green", lw=1,   linestyle=":")
-    ax_resid.set_xlabel("Residual (Predicted − True) mg/dL")
-    ax_resid.set_ylabel("Count")
-    ax_resid.set_title(
-        f"Residuals — Model {key}  "
-        f"(bias={rr['bias']:+.2f}  ±2 mg/dL: {rr['w2']:.1f}%)",
-        fontsize=9,
-    )
-    ax_resid.legend(fontsize=8)
-    ax_resid.grid(alpha=0.3)
+ax_resid = axes3[1]
+ax_resid.hist(residuals, bins=40, color="coral", edgecolor="white", alpha=0.8)
+ax_resid.axvline(0,  color="black", lw=1.2, linestyle="--")
+ax_resid.axvline(-2, color="green", lw=1,   linestyle=":", label="±2 mg/dL")
+ax_resid.axvline(+2, color="green", lw=1,   linestyle=":")
+ax_resid.set_xlabel("Residual (Predicted − True) mg/dL")
+ax_resid.set_ylabel("Count")
+ax_resid.set_title(
+    f"Residuals — Model 2  (bias={reg_results['bias']:+.2f}  ±2 mg/dL: {reg_results['w2']:.1f}%)",
+    fontsize=9,
+)
+ax_resid.legend(fontsize=8)
+ax_resid.grid(alpha=0.3)
 
 plt.tight_layout()
 plt.savefig(os.path.join(PLOTS_DIR, "regression_eval.png"), dpi=150)
@@ -248,18 +227,16 @@ ax4.plot(BHUTANI_HOURS, P95, "r-",              lw=1.5)
 ax4.plot(BHUTANI_HOURS, P75, "-", color="orange", lw=1.5)
 ax4.plot(BHUTANI_HOURS, P40, "y-",              lw=1.5)
 
-bundle_2A = load_model("model_2A")
-feats_2A  = safe_feats(bundle_2A["features"], test_df)
-pts_pred  = np.clip(bundle_2A["model"].predict(test_df[feats_2A]), 0, TSB_CLIP_MAX)
+pts_pred  = np.clip(bundle_2["model"].predict(test_df[feats_2]), 0, TSB_CLIP_MAX)
 pts_hours = test_df["postnatal_age_days"].astype(float).values * 24  # type: ignore
 ax4.scatter(pts_hours, pts_pred, s=12, alpha=0.4,
-            color="steelblue", edgecolors="none", label="Model 2A Predictions")
+            color="steelblue", edgecolors="none", label="Model 2 Predictions")
 
 ax4.set_xlim(12, 144)
 ax4.set_ylim(0, 25)
 ax4.set_xlabel("Postnatal Age (hours)", fontsize=11)
 ax4.set_ylabel("Estimated TSB (mg/dL)", fontsize=11)
-ax4.set_title("Bhutani Nomogram with Model 2A TSB Predictions",
+ax4.set_title("Bhutani Nomogram with Model 2 TSB Predictions",
               fontsize=12, fontweight="bold")
 ax4.legend(fontsize=9, loc="upper right")
 ax4.grid(alpha=0.3)

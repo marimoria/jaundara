@@ -68,7 +68,7 @@ print(f"Features with NORMAL distribution    : {n_normal} / {n_total}")
 print(f"Features with NON-NORMAL distribution: {n_total - n_normal} / {n_total}")
 
 # Save feature results using a relative path
-res_df.to_csv("__plots__/explore/ks_test_results.csv", index=False)
+res_df.to_csv("__plots__/explore/csv/ks_test_results.csv", index=False)
 print("\nFull table saved -> ks_test_results.csv")
 print(res_df.to_string(index=False))
 

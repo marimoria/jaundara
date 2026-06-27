@@ -2,8 +2,8 @@
 predict.py — Neonatal Jaundice Inference
 
 Pipeline:
-  1. Model 1A/1B  : binary detection gate (jaundiced vs normal)
-  2. Model 2A/2B  : TSB regression → estimated blood_mg_dl
+  1. Model 1  : binary detection gate (jaundiced vs normal)
+  2. Model 2  : TSB regression → estimated blood_mg_dl
   3. Bhutani logic: risk zone + action from (tsb_mgdl, age_hours)
 
 Engineered features are computed inline from raw zone values before inference,
@@ -160,32 +160,26 @@ def predict_patient(
                             present in your data (mean_zones_*, *_R_div_B, *_G_minus_B).
                             grad_z3z1_* and mean_zones_H_mean are computed internally.
     postnatal_age_hours   : postnatal age in hours — required for Bhutani lookup
-    gestational_age       : weeks (optional; enables Model A variants)
+    gestational_age       : weeks (optional)
     postnatal_age_days    : derived from postnatal_age_hours if omitted
-    weight                : grams (optional; included in feature set but low Spearman r,
-                            retained for model bundle compatibility)
+    weight                : grams (optional; low Spearman r but retained for compatibility)
     detection_threshold   : P(jaundice) threshold for binary gate (default 0.5)
 
     Returns
     -------
-    dict: jaundice_detected, detection_proba, tsb_estimated, bhutani,
-          model_detection, model_regression, postnatal_age_hours
+    dict: jaundice_detected, detection_proba, tsb_estimated, bhutani, postnatal_age_hours
     """
     if postnatal_age_days is None:
         postnatal_age_days = postnatal_age_hours / 24.0
 
-    has_meta = gestational_age is not None
-
     df_row = _build_row(zone_features, postnatal_age_days, gestational_age, weight)
 
-    det_key    = "1A" if has_meta else "1B"
-    det_bundle = _load_model(f"model_{det_key}")
+    det_bundle = _load_model("model_1")
     det_feats  = [f for f in det_bundle["features"] if f in df_row.columns]
     det_proba  = float(det_bundle["model"].predict_proba(df_row[det_feats])[0, 1])
     jaundice_detected = det_proba >= detection_threshold
 
-    reg_key    = "2A" if has_meta else "2B"
-    reg_bundle = _load_model(f"model_{reg_key}")
+    reg_bundle = _load_model("model_2")
     reg_feats  = [f for f in reg_bundle["features"] if f in df_row.columns]
     raw_tsb    = float(reg_bundle["model"].predict(df_row[reg_feats])[0])
     tsb_estimated = round(float(np.clip(raw_tsb, 0.0, 40.0)), 2)
@@ -195,8 +189,6 @@ def predict_patient(
         "detection_proba":    round(det_proba, 4),
         "tsb_estimated":      tsb_estimated,
         "bhutani":            bhutani_risk_zone(tsb_estimated, postnatal_age_hours),
-        "model_detection":    det_key,
-        "model_regression":   reg_key,
         "postnatal_age_hours": postnatal_age_hours,
     }
 
@@ -251,9 +243,9 @@ if __name__ == "__main__":
     b = result["bhutani"]
     logging.info("jaundice_detected   : %s", result["jaundice_detected"])
     logging.info("detection_proba     : %.4f", result["detection_proba"])
-    logging.info("model_detection     : %s", result["model_detection"])
+
     logging.info("tsb_estimated       : %.2f mg/dL", result["tsb_estimated"])
-    logging.info("model_regression    : %s", result["model_regression"])
+
     logging.info("postnatal_age_hours : %s h", result["postnatal_age_hours"])
     logging.info("risk_zone           : %s (code=%d)", b["zone"], b["zone_code"])
     logging.info("thresholds @ %sh     : P40=%.2f  P75=%.2f  P95=%.2f mg/dL",

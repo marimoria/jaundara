@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 # 1. LOAD DATA (Updated with Relative Path for GitHub)
 # ---------------------------------------------------------------
 # Using relative path so anyone cloning this repository can run it immediately
-df = pd.read_csv("__data__/neo/out/training_engineered.csv")
+df = pd.read_csv("__data__/neo/out/training_cleaned.csv")
 
 RESPONSE = "blood_mg_dl"          # TSB (Total Serum Bilirubin)
 EXCLUDE = ["patient_id", "is_augmented", "jaundice_label", RESPONSE]
@@ -68,7 +68,7 @@ print(f"Features with NORMAL distribution    : {n_normal} / {n_total}")
 print(f"Features with NON-NORMAL distribution: {n_total - n_normal} / {n_total}")
 
 # Save feature results using a relative path
-res_df.to_csv("ks_test_results.csv", index=False)
+res_df.to_csv("__plots__/explore/ks_test_results.csv", index=False)
 print("\nFull table saved -> ks_test_results.csv")
 print(res_df.to_string(index=False))
 

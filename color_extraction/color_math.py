@@ -55,5 +55,5 @@ def xyz_to_lab(X: float, Y: float, Z: float) -> tuple[float, float, float]:
 
 
 def rgb_to_lab(r: float, g: float, b: float) -> tuple[float, float, float]:
-    """Convenience wrapper: normalised RGB → CIELAB (L*, a*, b*) in one call."""
+    """Convenience wrapper: normalised RGB : CIELAB (L*, a*, b*) in one call."""
     return xyz_to_lab(*rgb_to_xyz(r, g, b))

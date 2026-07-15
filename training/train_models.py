@@ -509,7 +509,7 @@ for tag, label, trainer, evaluator, is_clf in [
     model_type = "binary" if is_clf else "tsb_regressor"
     log.info("─── model %s ───", tag)
 
-    # pass 1: full feature set → SHAP selection
+    # pass 1: full feature set : SHAP selection
     m_full = trainer(
         train_df[ALL_FEATURES], train_df[label],
         val_df[ALL_FEATURES],   val_df[label],

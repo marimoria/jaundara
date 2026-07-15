@@ -3,7 +3,7 @@ dataset_pipeline.py
 Orchestrates the full NeoJaundice training-data preparation pipeline:
 
   1  Discover images across all three training zones (-1 head, -2 face/cheek, -3 chest).
-  2  For each image: crop → mask → extract 14 features.
+  2  For each image: crop : mask : extract 14 features.
   3  For each original image: produce 3 brightness-augmented variants and extract features.
   4  Merge the feature table with the clinical metadata CSV.
   5  Write a training-ready CSV (42 color features + 3 metadata fields + TSB + binary label).
@@ -12,9 +12,9 @@ Augmentation multiplier:
   745 patients * 3 zones * (1 original + 3 augmented) = 8,940 feature rows
 
 Training zones:
-  Suffix -1  →  head / forehead  (Kramer Zone 1)
-  Suffix -2  →  face / cheek     (Kramer Zone 1 — additional signal)
-  Suffix -3  →  chest / sternum  (Kramer Zone 2)
+  Suffix -1  :  head / forehead  (Kramer Zone 1)
+  Suffix -2  :  face / cheek     (Kramer Zone 1 — additional signal)
+  Suffix -3  :  chest / sternum  (Kramer Zone 2)
 
 CSV schema expected from the NeoJaundice dataset:
   patient_id, image_idx, gender, gestational_age, age(day),
@@ -79,7 +79,7 @@ def _extract_features_from_bgr_in_memory(
     is_augmented: bool,
     aug_variant_index: int | None = None,
 ) -> dict:
-    """Crop → mask → extract features from a BGR array already in memory."""
+    """Crop : mask : extract features from a BGR array already in memory."""
     from .image_processor import _crop_center_half
 
     cropped         = _crop_center_half(bgr_image)

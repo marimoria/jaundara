@@ -3,7 +3,7 @@ predict.py — Neonatal Jaundice Inference
 
 Pipeline:
   1. Model 1  : binary detection gate (jaundiced vs normal)
-  2. Model 2  : TSB regression → estimated blood_mg_dl
+  2. Model 2  : TSB regression : estimated blood_mg_dl
   3. Bhutani logic: risk zone + action from (tsb_mgdl, age_hours)
 
 Engineered features are computed inline from raw zone values before inference,

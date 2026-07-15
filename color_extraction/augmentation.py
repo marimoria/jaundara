@@ -1,25 +1,15 @@
 """
-augmentation.py
 Brightness-only augmentation for neonatal jaundice training images.
-
-The models operate on explicit color statistics extracted from skin pixels,
-not raw pixel tensors. Jittering hue, saturation, or chrominance channels
-would write incorrect feature values into rows that still carry their original
-label, introducing systematic label noise.
-
 Only the L (lightness) channel in HLS is varied, simulating brightness
 differences from different cameras and lighting conditions while preserving
 every diagnostically critical channel:
 
-  H  (hue)                — primary yellowing indicator    → FIXED
-  Cr (YCrCb chrominance)  — direct bilirubin signal        → FIXED
-  b* (CIELAB blue-yellow) — strongest jaundice indicator   → FIXED
-  L  (HLS lightness)      — lighting proxy only            → VARIED
+  H  (hue)                - primary yellowing indicator    : FIXED
+  Cr (YCrCb chrominance)  - direct bilirubin signal        : FIXED
+  b* (CIELAB blue-yellow) - strongest jaundice indicator   : FIXED
+  L  (HLS lightness)      - lighting proxy only            : VARIED
 
-Reference: Çağır (2025) confirms that jittering diagnostically critical color
-channels degrades accuracy, while brightness augmentation improves robustness.
-
-Pipeline outcome:
+  Output:
   745 patients * 3 zones * (1 original + 3 augmented) = 8,940 images
 """
 
@@ -91,8 +81,8 @@ def save_augmented_variants_to_disk(
     seed: int | None = None,
 ) -> list[str]:
     """
-    Load `source_image_path`, produce brightness-shifted variants, and save
-    them to `output_dir` as `<stem>_aug0.jpg`, `<stem>_aug1.jpg`, etc.
+    Load source_image_path, produce brightness-shifted variants, and save
+    them to output_dir as <stem>_aug0.jpg, <stem>_aug1.jpg, etc.
 
     Returns a list of saved file paths.
     """

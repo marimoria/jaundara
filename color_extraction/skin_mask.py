@@ -2,7 +2,7 @@
 skin_mask.py
 HSV-based two-range skin segmentation for neonatal images.
 
-Covers light → dark skin tones found across the populations
+Covers light : dark skin tones found across the populations
 represented in NeoJaundice, NJN (Iraq/Iran), and Indonesian cohorts.
 """
 

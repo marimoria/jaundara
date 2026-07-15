@@ -9,9 +9,9 @@ Handles everything for a single image:
   5. Compute 14 color features.
 
 Zone mapping (NeoJaundice filename suffix convention):
-  -1  →  head / forehead   (Kramer Zone 1)
-  -2  →  face              (Kramer Zone 1)
-  -3  →  chest / sternum   (Kramer Zone 2)
+  -1  :  head / forehead   (Kramer Zone 1)
+  -2  :  face              (Kramer Zone 1)
+  -3  :  chest / sternum   (Kramer Zone 2)
 """
 
 import logging
@@ -57,7 +57,7 @@ def process_single_image(
     debug_dir: str = "debug",
 ) -> dict:
     """
-    Full pipeline for one image: load → crop → mask → features.
+    Full pipeline for one image: load : crop : mask : features.
 
     Parameters
     ----------

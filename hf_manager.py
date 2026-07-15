@@ -119,7 +119,7 @@ def upload_files(api: HfApi, selected_files: list[Path]):
 
 
 def list_local_files():
-    separator("OPTION 1 — List local files")
+    separator("OPTION 1: List local files")
 
     if not DATA_DIR.exists():
         print(f"  Directory not found: {DATA_DIR}")
@@ -142,7 +142,7 @@ def list_local_files():
 
 
 def upload_local_files():
-    separator("OPTION 2 — Upload local files to HuggingFace")
+    separator("OPTION 2: Upload local files to HuggingFace")
 
     if not DATA_DIR.exists():
         print(f"  Directory not found: {DATA_DIR}")
@@ -158,7 +158,7 @@ def upload_local_files():
 
 
 def download_all_files():
-    separator("OPTION 3 — Download all files from HuggingFace")
+    separator("OPTION 3: Download all files from HuggingFace")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"  Downloading full repo snapshot to {DATA_DIR} ...")
@@ -172,7 +172,7 @@ def download_all_files():
 
 
 def download_specific_files():
-    separator("OPTION 4 — Download specific file(s) from HuggingFace")
+    separator("OPTION 4: Download specific file(s) from HuggingFace")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     print("  Enter filename(s) as they appear in the repo (e.g. metadata.csv).")
@@ -200,7 +200,7 @@ def download_specific_files():
 
 
 def update_files():
-    separator("OPTION 5 — Update / re-upload local files to HuggingFace")
+    separator("OPTION 5: Update / re-upload local files to HuggingFace")
     upload_local_files()
 
 

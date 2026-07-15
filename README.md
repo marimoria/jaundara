@@ -1,107 +1,116 @@
-# Jaundara: Smartphone-Based Neonatal Jaundice Detection via Skin Color Analysis
+# Jaundara: Smartphone-Based Neonatal Jaundice Detection via Multi-Color Feature Analysis and SHAP
 
-Jaundara (Jaundice Indra) is an end-to-end machine learning pipeline for non-invasive detection of neonatal jaundice (hyperbilirubinemia) from skin images. The system is designed for independent use by caregivers and midwives via smartphone, with the aim of preventing fatal complications such as kernicterus in newborns.
-
----
+Jaundara (Jaundice Indra) is an end-to-end machine learning pipeline for the non-invasive detection of neonatal jaundice (ikterus neonatorum) from smartphone skin images. Designed for independent use by mothers and midwives, the system runs entirely on-device, bridging the gap between clinical accuracy and household accessibility to prevent fatal neurological complications like kernicterus.
 
 ## Background
 
-Neonatal jaundice is a condition characterized by skin yellowing due to elevated serum bilirubin, contributing significantly to neonatal mortality in Indonesia (26,657 deaths in 2024). When detected late, bilirubin can penetrate the blood-brain barrier and cause permanent neurological damage (kernicterus).
+Neonatal jaundice—, haracterized by the yellowing of the skin and sclera due to elevated bilirubin levels, is a critical public health issue. According to the Global Burden of Disease (GBD) 2021, its prevalence increased by 41.5% between 1990 and 2021. In Indonesia, the 2024 Health Profile reported that 26,657 of the 31,393 infant deaths occurred during the neonatal period, with complications related to conditions like severe jaundice playing a significant role.
 
-Existing diagnostic and screening methods present barriers to early independent detection:
+Existing diagnostic and screening methods present barriers to early, independent detection:
 
-1. **Transcutaneous Serum Bilirubin (TSB) Sampling.** The diagnostic gold standard, but invasive, painful, and requires laboratory infrastructure.
-2. **Transcutaneous Bilirubinometry.** A non-invasive commercial alternative, but prohibitively expensive (USD 3,000 to USD 5,000 per unit) for primary healthcare facilities.
-3. **Kramer Visual Scale.** Clinical visual assessment with limited sensitivity and specificity (approximately 70%), owing to its reliance on subjective clinical experience.
-4. **Sclera-Based AI Solutions.** Prior computer vision research targeting the ocular sclera is impractical for home use, as neonatal eyes are frequently closed and difficult to photograph with precision.
-5. **Prior AI Systems (NJN Dataset).** Existing models provide only binary classification (normal/jaundice) without severity gradation and are designed for NICU specialists rather than household screening.
+- **Total Serum Bilirubin (TSB) Sampling:** The clinical gold standard, but it is invasive, painful, and requires laboratory infrastructure often unavailable in remote areas.
+- **Transcutaneous Bilirubinometry:** Non-invasive alternatives (e.g., BiliCare, JM-105) are highly accurate but prohibitively expensive (USD 3,000–5,000) for primary healthcare facilities.
+- **Kramer Visual Scale:** Clinical visual assessment has limited sensitivity and relies heavily on subjective clinical experience.
+- **Prior AI Systems:** Existing computer vision approaches often focus on the ocular sclera (impractical for sleeping newborns) or provide only binary classifications without severity gradation, limiting their utility for household screening.
 
-Jaundara addresses these gaps through skin image analysis (Kramer Zones 1 and 2), combined with TSB regression modeling and Bhutani Nomogram mapping for actionable risk stratification.
-
----
+Jaundara addresses these gaps by analyzing skin images from Kramer Zones 1, 2, and 3 (forehead, cheek, and sternum). It combines LightGBM regression modeling with Bhutani Nomogram mapping to provide actionable, severity-graded risk stratification.
 
 ## Repository Structure
 
-```
+```text
 .
-├── __data__/                # Dataset storage (raw images and extracted CSV files)
+├── __data__/                # Dataset storage (raw images, extracted features, and EDA outputs)
 ├── __models__/              # LightGBM model weights output directory (.pkl)
-├── __plots__/               # Model evaluation visualization output directory
+├── __plots__/               # Model evaluation and EDA visualization output directory
+├── .ruff_cache/             # Linter cache
+├── .vscode/                 # Editor configurations
 ├── color_extraction/        # Core image processing and color feature extraction module
-│   ├── __main__.py          # CLI entry point for color_extraction
-│   ├── augmentation.py      # Brightness augmentation on the HSL L channel
-│   ├── cli.py               # Command-line interface (training and debug modes)
-│   ├── color_math.py        # Pure color space conversions (RGB to XYZ, CIELAB, HSL)
-│   ├── dataset_pipeline.py  # Tabular dataset construction orchestrator
-│   ├── debug_visualizer.py  # Multi-panel diagnostic image generator
-│   ├── feature_extractor.py # Computation of 14 statistical color features
-│   ├── image_processor.py   # Center-crop and mask application
-│   ├── __init__.py          # Public module exports
-│   └── skin_mask.py         # Dual-range HSV algorithm for neonatal skin segmentation
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── augmentation.py      # Brightness augmentation strictly on the HSL L-channel
+│   ├── cli.py
+│   ├── color_math.py        # Pure color space conversions (RGB, XYZ, CIELAB, HSL)
+│   ├── dataset_pipeline.py
+│   ├── debug_visualizer.py
+│   ├── feature_extractor.py # Computation of 14 statistical color features per zone
+│   ├── image_processor.py   # Center-crop (40%) and pipeline orchestration
+│   └── skin_mask.py         # Dual-range HSV algorithm for robust neonatal skin segmentation
+├── data_exploration/        # Data exploration and feature engineering pipeline
+│   ├── phase1_exploration.py  # Structure audit, target distribution, feature skewness
+│   ├── phase2_exploration.py  # Kolmogorov-Smirnov normality tests
+│   ├── phase3_exploration.py  # Spearman correlation, intra-zone redundancy, cross-zone Kramer's rule
+│   └── phase4_exploration.py  # Feature engineering based on correlation gain thresholds
 ├── training/                # Modeling, tuning, and evaluation scripts
-│   ├── evaluate.py          # Evaluation plot generation (ROC, regression residuals, Nomogram)
-│   ├── predict.py           # End-to-end inference pipeline
-│   ├── train_models.py      # LightGBM training script (Models 1A/1B and 2A/2B)
+│   ├── evaluate.py          # Evaluation plot generation (ROC, regression residuals)
+│   ├── predict.py           # End-to-end inference simulating the on-device pipeline
+│   ├── train_models.py      # LightGBM training (Classification and Regression models)
 │   └── tune_regression.py   # Bayesian hyperparameter optimization via Optuna
 ├── .env                     # Local environment variables (HuggingFace token, etc.)
 ├── .env.template            # Template for the .env file
 ├── .gitignore               # Git exclusion configuration
-├── hf_file_manager.py       # Dataset synchronization with HuggingFace Hub
+├── hf_manager.py            # Interactive HuggingFace dataset synchronization CLI
 ├── README.md                # Project documentation
 └── requirements.txt         # Python dependency list
 ```
-
----
 
 ## Methodology
 
 ### 1. Dataset and Preprocessing
 
-- **Dataset.** The NeoJaundice dataset comprising 2,235 images from 745 neonates, covering three anatomical zones (forehead, cheek, sternum) with clinical metadata (gestational age, postnatal age, birth weight).
-- **Center Crop.** Automatic 40-50% center cropping to remove the color reference card borders present in the dataset.
-- **Dual-Range HSV Skin Segmentation.** Binary mask construction using the union of two HSV value ranges (covering light and dark neonatal skin tones), refined with morphological operations using a 7x7 elliptical kernel.
-- **Domain-Specific Augmentation.** Camera lighting variation is simulated by applying brightness augmentation exclusively to the `L` channel in HSL color space (scale factors in [0.8, 1.2]), preserving diagnostically relevant channels (Hue, Cr, b\*).
+- **Dataset:** Built on the NeoJaundice dataset containing 2,235 images from 745 neonates, utilizing three anatomical zones (forehead, cheek, sternum) alongside clinical metadata (gestational age, postnatal age, birth weight).
+- **Image Processing:** Images undergo a 40% center crop to remove color reference card borders.
+- **Dual-Range HSV Segmentation:** A robust binary mask is constructed using a union of two HSV ranges to account for both light and dark neonatal skin tones, refined via morphological close/open operations.
+- **Targeted Augmentation:** To simulate varied smartphone camera lighting while preserving clinical integrity, brightness augmentation is applied _only_ to the L (Lightness) channel in the HSL space (factor: 0.8 to 1.2). Crucial diagnostic channels (Hue, Cr, CIELAB b\*) remain untouched.
 
-### 2. Feature Engineering
+### 2. Feature Engineering & Exploration Pipeline
 
-From validated skin pixels, 14 statistical features are extracted per anatomical zone, yielding 42 total color features across four color spaces:
+The project utilizes a rigorous 4-phase exploratory data analysis (EDA) and engineering pipeline:
 
-- **RGB.** Baseline color representation (`R_mean`, `R_std`).
-- **YCbCr.** The `Cr` channel directly encodes spectral shifts associated with bilirubin.
-- **HSL.** The `H` (Hue) channel is used for its invariance to illumination intensity changes.
-- **CIELAB.** The `b*` axis (blue-yellow) is the most clinically validated and device-independent single indicator of jaundice severity.
+- **Phase 1 & 2:** Analyzes the `blood_mg_dl` target distribution and performs Kolmogorov-Smirnov normality testing, confirming non-normal distributions and establishing Spearman's rank as the primary correlation metric.
+- **Phase 3:** Validates Kramer's Rule computationally by demonstrating that correlations with TSB increase from Zone 1 to Zone 3 (e.g., `zone3_Lab_b_mean` shows stronger correlation than `zone1`).
+- **Phase 4:** Engineers 18 new features (e.g., G-B difference, R/B ratio, cross-zone gradients, and Individual Typology Angle). Features are only retained if they demonstrate a clear Spearman correlation gain (≥ 0.02) over their base components.
 
 ### 3. LightGBM Modeling and SHAP Feature Selection
 
-- **Algorithm.** LightGBM was selected for its performance on tabular data, short training time, and compact model export size, which is suitable for on-device smartphone deployment.
-- **Model Variants.** To accommodate real-world scenarios where caregivers may not have access to birth records, models are trained in variant **A** (color features with clinical metadata) and variant **B** (color features only).
-- **Prediction Tasks.** Model 1 performs binary classification. Model 2 is optimized via **Optuna** (100 Bayesian search trials) for Total Serum Bilirubin (TSB) regression.
-- **SHAP-Based Feature Selection.** Features with marginal SHAP contribution below 1% are removed, retaining only high-weight features such as `postnatal_age_days`, `zone3_H_mean`, and `zone3_Lab_b_mean`.
+- **Algorithm:** LightGBM was selected for its exceptional tabular data performance, histogram-based speed, and compact model size (~4.83 MB), making it ideal for on-device Flutter integration.
+- **SHAP Selection:** Out of 42 combined raw and engineered features, SHAP (SHapley Additive exPlanations) values filter the dataset down to the most highly predictive subsets—27 features for detection and 31 for regression. Top contributors include `postnatal_age_days`, `zone3_Lab_b_mean`, `zone3_H_mean`, and `zone3_G_minus_B`.
+- **Hyperparameter Tuning:** Model 2 (Regression) undergoes 100 iterations of Bayesian optimization via Optuna to minimize MAE and RMSE.
 
 ### 4. Bhutani Nomogram Mapping
 
-TSB regression output from Model 2 is not the final clinical result. The predicted TSB value is combined with postnatal age (in hours) and mapped onto the **Bhutani Nomogram** to produce a clinical risk zone category (Low, Low-Intermediate, High-Intermediate, High) with corresponding actionable recommendations for the caregiver.
-
----
+The pipeline doesn't stop at raw TSB prediction. Model 2's continuous TSB output is evaluated alongside postnatal age (in hours) against the clinical standard **Bhutani Nomogram**. This translates complex biochemical estimations into four clear clinical risk zones (Low, Low Risk, High-Intermediate, High Risk) with actionable recommendations for parents.
 
 ## Evaluation Results
 
-Models were evaluated using a stratified 70/15/15 train/validation/test split with strict patient-level partitioning to prevent data leakage.
+Models were rigorously evaluated on a 70/15/15 train/validation/test split, partitioned strictly at the patient level to prevent data leakage.
 
-| Model    | Task                  | Input                      | Test Set Performance                                  |
-| -------- | --------------------- | -------------------------- | ----------------------------------------------------- |
-| Model 1A | Binary Classification | Color (3 zones) + Metadata | Accuracy: 84.82% / AUC-ROC: 91.96%                    |
-| Model 1B | Binary Classification | Color only                 | Accuracy: 82.14% / AUC-ROC: 87.25%                    |
-| Model 2A | TSB Regression        | Color (3 zones) + Metadata | MAE: 2.382 mg/dL / R2: 0.6507 / within 2 mg/dL: 55.4% |
-| Model 2B | TSB Regression        | Color only                 | MAE: 3.040 mg/dL / R2: 0.4992                         |
-
----
+| Model       | Task                                        | Features Used      | Test Set Performance                                                                  |
+| ----------- | ------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------- |
+| **Model 1** | Binary Classification (Jaundice vs. Normal) | 27 (SHAP Selected) | **Accuracy:** 84.82% <br><br> **F1-Score:** 82.47% <br><br> **AUC-ROC:** 93.32%       |
+| **Model 2** | TSB Regression                              | 31 (SHAP Selected) | **RMSE:** 2.517 mg/dL <br><br> **R²:** 0.7775 <br><br> **Accuracy (±2 mg/dL):** 54.5% |
 
 ## Usage
 
-### 1. Feature Extraction and Dataset Construction
+### 1. Dataset Synchronization (`hf_manager.py`)
 
-Run the `color_extraction` module to process a raw image directory and match it against a clinical CSV to build the training dataset.
+Keep local and remote datasets synchronized using the interactive HuggingFace CLI tool. Make sure to define `HF_TOKEN` in your `.env` file first.
+
+```bash
+python hf_manager.py
+```
+
+This launches an interactive menu with the following capabilities:
+
+1. **List local files:** Inspect sizes and paths of the currently active dataset directory.
+2. **Upload local files:** Selectively (or entirely) batch upload files/folders to the HuggingFace Hub.
+3. **Download ALL files:** Pull a full repository snapshot locally.
+4. **Download specific file(s):** Fetch targeted files without downloading the entire repo.
+5. **Update / re-upload:** Sync modified local data back to the Hub.
+6. **Change Repository and Directory:** Switch targets on the fly.
+
+### 2. Feature Extraction
+
+Extract the validated color features from a raw image directory to build the final tabular dataset.
 
 ```bash
 # Batch extraction for training dataset construction
@@ -113,42 +122,41 @@ python -m color_extraction training \
 # Single-image debug extraction
 python -m color_extraction debug \
     --image __data__/neo/images/0003-1.jpg \
-    --debug_dir out/debug \
+    --debug_dir __data__/neo/out/debug \
     --augment
 ```
 
-### 2. Model Training and Hyperparameter Tuning
+### 3. Data Exploration & Feature Engineering
+
+Run the phased EDA pipeline to evaluate normality, map correlations, and engineer features based on the extracted tabular dataset.
 
 ```bash
-# Train Models 1A, 1B, 2A, and 2B with detailed logging
+python data_exploration/phase1_exploration.py
+python data_exploration/phase2_exploration.py
+python data_exploration/phase3_exploration.py
+python data_exploration/phase4_exploration.py
+```
+
+### 4. Model Training and Hyperparameter Tuning
+
+```bash
+# Train LightGBM models with SHAP integration and detailed logging
 python training/train_models.py --log
 
-# Bayesian hyperparameter search via Optuna (minimizes MAE)
+# Bayesian hyperparameter search via Optuna for TSB Regression
 python training/tune_regression.py
 ```
 
-### 3. Evaluation
-
-Loads trained models and writes statistical test metrics and visualizations to `__plots__/`.
+### 5. Evaluation & Inference
 
 ```bash
+# Generate evaluation metrics, ROC curves, and residual plots
 python training/evaluate.py
-```
 
-### 4. End-to-End Inference
-
-Simulates the full detection pipeline, returning binary classification, estimated TSB value, and Bhutani Nomogram risk category with recommended action.
-
-```bash
+# Simulate the full on-device pipeline (Classification -> Regression -> Bhutani Nomogram)
 python training/predict.py
-```
-
-### 5. HuggingFace Dataset Synchronization
-
-```bash
-python hf_file_manager.py
 ```
 
 ---
 
-_Submitted to GAMMAFEST 2026 (ID: ESC26032)_
+_Submitted to SATRIA DATA 2026_
